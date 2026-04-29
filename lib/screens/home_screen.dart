@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
@@ -9,6 +10,7 @@ import '../widgets/screenshot_popup.dart';
 import 'capture_details_screen.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'dart:typed_data';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +22,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<ScreenshotItem> _items = [];
   final Set<String> _pendingPopups = {};
+  StreamSubscription? _screenshotSubscription;
+  StreamSubscription? _notificationSubscription;
 
   @override
   void initState() {
@@ -27,6 +31,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadItems();
     _startMonitoring();
     _checkNotificationPermission();
+  }
+
+  @override
+  void dispose() {
+    _screenshotSubscription?.cancel();
+    _notificationSubscription?.cancel();
+    ScreenshotService.stopMonitoring();
+    super.dispose();
   }
 
   Future<void> _checkNotificationPermission() async {
@@ -40,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startMonitoring() {
-    ScreenshotService.screenshotStream.listen((asset) {
+    _screenshotSubscription = ScreenshotService.screenshotStream.listen((asset) {
       print('DEBUG: Screenshot stream received asset: ${asset.id}');
       // 1. Show notification? Only if you want it even when in app.
       // Usually, if we show the popup immediately, a notification is redundant and noisy.
@@ -52,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     // Listen for notification taps
-    NotificationService.notificationStream.listen((assetId) async {
+    _notificationSubscription = NotificationService.notificationStream.listen((assetId) async {
       print('DEBUG: Notification tapped for assetId: $assetId');
       final asset = await AssetEntity.fromId(assetId);
       if (asset != null) {
@@ -108,12 +120,13 @@ class _HomeScreenState extends State<HomeScreen> {
         asset: asset,
         initialNote: initialNote,
         initialReminder: initialReminder,
-        onSave: (note, reminder) async {
+        onSave: (note, category, reminder) async {
           _pendingPopups.remove(asset.id);
           final newItem = ScreenshotItem(
             id: asset.id,
             path: (await asset.file)!.path,
             note: note,
+            category: category,
             reminderTime: reminder,
             createdAt: DateTime.now(),
           );
@@ -154,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.black,
+      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -162,17 +175,22 @@ class _HomeScreenState extends State<HomeScreen> {
             largeTitle: Text(
               'My Captures',
               style: TextStyle(
-                color: CupertinoColors.white,
+                color: CupertinoColors.label.resolveFrom(context),
                 letterSpacing: -1.2,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            backgroundColor: CupertinoColors.black.withOpacity(0.8),
+            backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
             border: null,
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,
-              onPressed: _pickFromGallery,
-              child: const Icon(CupertinoIcons.add_circled_solid, size: 32, color: CupertinoColors.activeBlue),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(builder: (context) => const SearchScreen()),
+                );
+              },
+              child: const Icon(CupertinoIcons.search, size: 28, color: CupertinoColors.activeBlue),
             ),
           ),
           
@@ -186,7 +204,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(30),
-                        
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          color: CupertinoColors.activeBlue.withOpacity(0.1),
+                          child: const Icon(CupertinoIcons.photo, size: 50, color: CupertinoColors.activeBlue),
+                        ),
                       ),
                       const SizedBox(height: 30),
                       const Text(
@@ -194,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: CupertinoColors.white,
+                          color: CupertinoColors.label,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -244,13 +267,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: CupertinoColors.black.withOpacity(0.6),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+                          boxShadow: CupertinoTheme.of(context).brightness == Brightness.dark 
+                            ? [] 
+                            : [
+                                BoxShadow(
+                                  color: CupertinoColors.systemFill.resolveFrom(context),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: Stack(
@@ -275,10 +300,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     end: Alignment.bottomCenter,
                                     stops: const [0.0, 0.4, 0.7, 1.0],
                                     colors: [
-                                      CupertinoColors.black.withOpacity(0.3),
+                                      CupertinoColors.black.withOpacity(0.2),
                                       CupertinoColors.transparent,
-                                      CupertinoColors.black.withOpacity(0.4),
-                                      CupertinoColors.black.withOpacity(0.9),
+                                      CupertinoColors.black.withOpacity(0.3),
+                                      CupertinoColors.black.withOpacity(0.7),
                                     ],
                                   ),
                                 ),
@@ -296,10 +321,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.all(14.0),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF1A1A1A).withOpacity(0.7),
+                                      color: CupertinoTheme.of(context).brightness == Brightness.dark 
+                                          ? const Color(0xFF1A1A1A).withOpacity(0.7)
+                                          : CupertinoColors.white.withOpacity(0.85),
                                       border: Border(
                                         top: BorderSide(
-                                          color: CupertinoColors.white.withOpacity(0.12),
+                                          color: CupertinoColors.label.resolveFrom(context).withOpacity(0.12),
                                           width: 0.5,
                                         ),
                                       ),
@@ -309,12 +336,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          item.note.isNotEmpty ? item.note : 'Untitied Note',
+                                          item.note.isNotEmpty ? item.note : 'Untitled Note',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 15,
-                                            color: CupertinoColors.white,
+                                            color: CupertinoColors.label.resolveFrom(context),
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 0.2,
                                           ),
@@ -449,7 +476,7 @@ class _GalleryPickerState extends State<_GalleryPicker> {
                 Text(
                   'Select from Gallery',
                   style: CupertinoTheme.of(context).textTheme.navTitleTextStyle.copyWith(
-                    color: CupertinoColors.white,
+                    color: CupertinoColors.label.resolveFrom(context),
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),

@@ -22,13 +22,15 @@ class ScreenshotItemAdapter extends TypeAdapter<ScreenshotItem> {
       note: fields[2] as String,
       reminderTime: fields[3] as DateTime?,
       createdAt: fields[4] as DateTime,
+      isFavorite: fields[5] == null ? false : fields[5] as bool,
+      category: fields[6] == null ? 'Uncategorized' : fields[6] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, ScreenshotItem obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -38,7 +40,11 @@ class ScreenshotItemAdapter extends TypeAdapter<ScreenshotItem> {
       ..writeByte(3)
       ..write(obj.reminderTime)
       ..writeByte(4)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(5)
+      ..write(obj.isFavorite)
+      ..writeByte(6)
+      ..write(obj.category);
   }
 
   @override

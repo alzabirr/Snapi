@@ -2,7 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'home_screen.dart';
+import 'main_screen.dart';
+import '../services/background_service.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -32,10 +33,18 @@ class OnboardingScreen extends StatelessWidget {
 
     if (ps.isAuth) { // Only 'Authorized' is full access
       await prefs.setBool('seenOnboarding', true);
+
+      // Initialize background service now that we have permissions
+      try {
+        await BackgroundService.initialize();
+      } catch (e) {
+        debugPrint('BackgroundService init failed: $e');
+      }
+
       if (context.mounted) {
         Navigator.pushReplacement(
           context,
-          CupertinoPageRoute(builder: (context) => const HomeScreen()),
+          CupertinoPageRoute(builder: (context) => const MainScreen()),
         );
       }
     } else if (ps == PermissionState.limited) {
@@ -58,11 +67,19 @@ class OnboardingScreen extends StatelessWidget {
                 child: const Text('Continue with Limited'),
                 onPressed: () async {
                   await prefs.setBool('seenOnboarding', true);
+
+                  // Initialize background service
+                  try {
+                    await BackgroundService.initialize();
+                  } catch (e) {
+                    debugPrint('BackgroundService init failed: $e');
+                  }
+
                   if (context.mounted) {
                     Navigator.pop(context);
                     Navigator.pushReplacement(
                       context,
-                      CupertinoPageRoute(builder: (context) => const HomeScreen()),
+                      CupertinoPageRoute(builder: (context) => const MainScreen()),
                     );
                   }
                 },
@@ -71,7 +88,8 @@ class OnboardingScreen extends StatelessWidget {
           ),
         );
       }
-    } else {
+    }
+else {
       // Handle case where photos permission is denied
       if (context.mounted) {
         showCupertinoDialog(

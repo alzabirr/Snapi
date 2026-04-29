@@ -2,14 +2,16 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/speech_service.dart';
 
 class ScreenshotPopup extends StatefulWidget {
   final AssetEntity? asset;
   final String? imagePath;
   final String? initialNote;
+  final String? initialCategory;
   final DateTime? initialReminder;
-  final Function(String note, DateTime? reminder) onSave;
+  final Function(String note, String category, DateTime? reminder) onSave;
   final VoidCallback? onDelete;
 
   const ScreenshotPopup({
@@ -17,6 +19,7 @@ class ScreenshotPopup extends StatefulWidget {
     this.asset,
     this.imagePath,
     this.initialNote,
+    this.initialCategory,
     this.initialReminder,
     required this.onSave,
     this.onDelete,
@@ -29,6 +32,8 @@ class ScreenshotPopup extends StatefulWidget {
 class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProviderStateMixin {
   late final TextEditingController _noteController;
   DateTime? _selectedReminder;
+  String _selectedCategory = 'General';
+  List<String> _categories = ['General', 'Work', 'Personal', 'Social', 'School'];
   bool _isListening = false;
   File? _imageFile;
   late AnimationController _pulseController;
@@ -39,6 +44,8 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     super.initState();
     _noteController = TextEditingController(text: widget.initialNote);
     _selectedReminder = widget.initialReminder;
+    _selectedCategory = widget.initialCategory ?? 'General';
+    _loadCategories();
     _loadImage();
 
     _pulseController = AnimationController(
@@ -48,6 +55,19 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+  }
+
+  Future<void> _loadCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('user_categories');
+    if (saved != null) {
+      setState(() {
+        _categories = saved;
+        if (!_categories.contains(_selectedCategory)) {
+          _selectedCategory = _categories.first;
+        }
+      });
+    }
   }
 
   Future<void> _loadImage() async {
@@ -92,6 +112,49 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     }
   }
 
+  void _showAddCategoryDialog() {
+    final TextEditingController controller = TextEditingController();
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('New Folder'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            controller: controller,
+            placeholder: 'Folder Name',
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('Create'),
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                final prefs = await SharedPreferences.getInstance();
+                if (!_categories.contains(name)) {
+                  setState(() {
+                    _categories.add(name);
+                    _selectedCategory = name;
+                  });
+                  await prefs.setStringList('user_categories', _categories);
+                }
+                if (mounted) Navigator.pop(context);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildImage() {
     if (_imageFile != null) {
       return Container(
@@ -99,8 +162,8 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          color: const Color(0xFF1A1A1A),
-          border: Border.all(color: CupertinoColors.white.withOpacity(0.1), width: 0.5),
+          color: CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.2),
+          border: Border.all(color: CupertinoColors.label.resolveFrom(context).withOpacity(0.1), width: 0.5),
         ),
         clipBehavior: Clip.antiAlias,
         child: Image.file(
@@ -113,7 +176,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
       ),
       child: const Center(
@@ -133,7 +196,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
           top: 12,
         ),
         decoration: BoxDecoration(
-          color: const Color(0xFF0A0A0A).withOpacity(0.95),
+          color: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.95),
         ),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -172,15 +235,75 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     
                   _buildImage(),
                   
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
+
+                  // Category Selector (New)
+                  SizedBox(
+                    height: 40,
+                    child: Row(
+                      children: [
+                        // Add New Category Button
+                        GestureDetector(
+                          onTap: _showAddCategoryDialog,
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.activeBlue.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.2)),
+                            ),
+                            child: const Icon(CupertinoIcons.add, color: CupertinoColors.activeBlue, size: 20),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _categories.length,
+                            itemBuilder: (context, index) {
+                              final cat = _categories[index];
+                              final isSelected = _selectedCategory == cat;
+                              return GestureDetector(
+                                onTap: () => setState(() => _selectedCategory = cat),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? CupertinoColors.activeBlue : CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isSelected ? CupertinoColors.activeBlue : CupertinoColors.label.resolveFrom(context).withOpacity(0.1),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      cat,
+                                      style: TextStyle(
+                                        color: isSelected ? CupertinoColors.white : CupertinoColors.label.resolveFrom(context).withOpacity(0.7),
+                                        fontSize: 13,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
                   
                   // Beautiful & User-Friendly Description Area
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF161618),
+                      color: CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                        color: _isListening ? CupertinoColors.activeBlue.withOpacity(0.4) : CupertinoColors.white.withOpacity(0.05),
+                        color: _isListening ? CupertinoColors.activeBlue.resolveFrom(context).withOpacity(0.4) : CupertinoColors.label.resolveFrom(context).withOpacity(0.05),
                         width: 1.5,
                       ),
                     ),
@@ -197,8 +320,8 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                           maxLines: 5,
                           minLines: 3,
                           padding: const EdgeInsets.fromLTRB(22, 22, 22, 12),
-                          style: const TextStyle(
-                            color: CupertinoColors.white,
+                          style: TextStyle(
+                            color: CupertinoColors.label.resolveFrom(context),
                             fontSize: 16,
                             height: 1.5,
                             letterSpacing: -0.1,
@@ -253,7 +376,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                                         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                                         child: Container(
                                           height: 320,
-                                          color: const Color(0xFF121212).withOpacity(0.9),
+                                          color: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.95),
                                           child: Column(
                                             children: [
                                               Padding(
@@ -342,7 +465,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                             color: CupertinoColors.activeBlue,
                             borderRadius: BorderRadius.circular(20),
                             onPressed: () {
-                              widget.onSave(_noteController.text, _selectedReminder);
+                              widget.onSave(_noteController.text, _selectedCategory, _selectedReminder);
                               Navigator.pop(context);
                             },
                             child: Center(
@@ -367,7 +490,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                     child: Text(
                       'DISCARD',
                       style: TextStyle(
-                        color: CupertinoColors.white.withOpacity(0.4),
+                        color: CupertinoColors.label.resolveFrom(context).withOpacity(0.4),
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.0,

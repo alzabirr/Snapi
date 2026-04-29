@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 class ScreenshotService {
-  static Timer? _timer;
   static String? _lastImageId;
   static final StreamController<AssetEntity> _screenshotStream = StreamController<AssetEntity>.broadcast();
 
@@ -17,55 +17,64 @@ class ScreenshotService {
     }
     print('DEBUG: Screenshot monitoring starting with permission: $ps');
 
-    _timer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-      await _checkForNewScreenshot();
-    });
+    // Initial check to set baseline
+    await _checkForNewScreenshot(isInitial: true);
+
+    // Use PhotoManager change notification instead of Timer for better battery life
+    PhotoManager.addChangeCallback(_onGalleryChanged);
+    PhotoManager.startChangeNotify();
   }
 
-  static Future<void> _checkForNewScreenshot() async {
-    final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
-      type: RequestType.image,
-      filterOption: FilterOptionGroup(
-        imageOption: const FilterOption(
-          sizeConstraint: SizeConstraint(ignoreSize: true),
+  static void _onGalleryChanged(MethodCall call) {
+    print('DEBUG: Gallery change detected: ${call.method}');
+    _checkForNewScreenshot();
+  }
+
+  static Future<void> _checkForNewScreenshot({bool isInitial = false}) async {
+    try {
+      final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
+        type: RequestType.image,
+        filterOption: FilterOptionGroup(
+          imageOption: const FilterOption(
+            sizeConstraint: SizeConstraint(ignoreSize: true),
+          ),
+          orders: [
+            const OrderOption(type: OrderOptionType.createDate, asc: false),
+          ],
         ),
-        orders: [
-          const OrderOption(type: OrderOptionType.createDate, asc: false),
-        ],
-      ),
-    );
+      );
 
-    if (paths.isEmpty) return;
+      if (paths.isEmpty) return;
 
-    final List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 1);
-    if (entities.isEmpty) return;
+      final List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 1);
+      if (entities.isEmpty) return;
 
-    final AssetEntity latest = entities[0];
-    final DateTime now = DateTime.now();
-    final bool isVeryRecent = now.difference(latest.createDateTime).inSeconds.abs() < 60;
-
-    // print('DEBUG: Latest Check -> ID: ${latest.id}, Created: ${latest.createDateTime}, Recent: $isVeryRecent');
-    
-    if (_lastImageId == null) {
-      print('DEBUG: First Run - setting baseline ID: ${latest.id}');
-      _lastImageId = latest.id;
+      final AssetEntity latest = entities[0];
       
-      if (isVeryRecent) {
-        if (_isScreenshot(latest)) {
+      if (isInitial) {
+        print('DEBUG: First Run - setting baseline ID: ${latest.id}');
+        _lastImageId = latest.id;
+
+        final DateTime now = DateTime.now();
+        final bool isVeryRecent = now.difference(latest.createDateTime).inSeconds.abs() < 30;
+
+        if (isVeryRecent && _isScreenshot(latest)) {
           print('DEBUG: Found fresh screenshot on startup! Triggering popup.');
           _screenshotStream.add(latest);
         }
+        return;
       }
-      return;
-    }
 
-    if (_lastImageId != latest.id) {
-      print('DEBUG: Change detected! New ID: ${latest.id}');
-      if (_isScreenshot(latest)) {
-        print('DEBUG: Screenshot confirmed! Adding to stream.');
-        _screenshotStream.add(latest);
+      if (_lastImageId != latest.id) {
+        print('DEBUG: Change detected! New ID: ${latest.id}');
+        if (_isScreenshot(latest)) {
+          print('DEBUG: Screenshot confirmed! Adding to stream.');
+          _screenshotStream.add(latest);
+        }
+        _lastImageId = latest.id;
       }
-      _lastImageId = latest.id;
+    } catch (e) {
+      print('DEBUG: Error checking for screenshots: $e');
     }
   }
 
@@ -78,6 +87,7 @@ class ScreenshotService {
   }
 
   static void stopMonitoring() {
-    _timer?.cancel();
+    PhotoManager.removeChangeCallback(_onGalleryChanged);
+    PhotoManager.stopChangeNotify();
   }
 }

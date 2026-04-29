@@ -5,7 +5,7 @@ import 'services/notification_service.dart';
 import 'services/speech_service.dart';
 import 'services/background_service.dart';
 import 'screens/onboarding_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -31,12 +31,6 @@ void main() async {
     debugPrint('SpeechService init failed: $e');
   }
 
-  try {
-    await BackgroundService.initialize();
-  } catch (e) {
-    debugPrint('BackgroundService init failed: $e');
-  }
-
   // Check persistent storage for onboarding state
   Widget initialWidget = const OnboardingScreen();
   try {
@@ -44,7 +38,13 @@ void main() async {
     final bool seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
     
     if (seenOnboarding) {
-      initialWidget = const HomeScreen();
+      initialWidget = const MainScreen();
+      // Only initialize background service if permissions were likely granted
+      try {
+        await BackgroundService.initialize();
+      } catch (e) {
+        debugPrint('BackgroundService init failed: $e');
+      }
     }
   } catch (e) {
     debugPrint('Startup preferences check failed: $e');
@@ -53,22 +53,56 @@ void main() async {
   runApp(SnapshotMemoApp(initialWidget: initialWidget));
 }
 
-class SnapshotMemoApp extends StatelessWidget {
+class SnapshotMemoApp extends StatefulWidget {
   final Widget initialWidget;
 
   const SnapshotMemoApp({super.key, required this.initialWidget});
+
+  static _SnapshotMemoAppState of(BuildContext context) => 
+      context.findAncestorStateOfType<_SnapshotMemoAppState>()!;
+
+  @override
+  State<SnapshotMemoApp> createState() => _SnapshotMemoAppState();
+}
+
+class _SnapshotMemoAppState extends State<SnapshotMemoApp> {
+  Brightness _brightness = Brightness.dark;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDark = prefs.getBool('isDark') ?? true;
+    setState(() {
+      _brightness = isDark ? Brightness.dark : Brightness.light;
+    });
+  }
+
+  void toggleTheme() async {
+    setState(() {
+      _brightness = _brightness == Brightness.dark ? Brightness.light : Brightness.dark;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDark', _brightness == Brightness.dark);
+  }
 
   @override
   Widget build(BuildContext context) {
     return CupertinoApp(
       navigatorKey: navigatorKey,
       title: 'SnapshotMemo',
-      theme: const CupertinoThemeData(
+      theme: CupertinoThemeData(
         primaryColor: CupertinoColors.activeBlue,
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: CupertinoColors.black,
+        brightness: _brightness,
+        scaffoldBackgroundColor: _brightness == Brightness.dark 
+            ? CupertinoColors.black 
+            : CupertinoColors.systemGroupedBackground,
       ),
-      home: initialWidget,
+      home: widget.initialWidget,
       debugShowCheckedModeBanner: false,
     );
   }

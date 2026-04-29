@@ -19,11 +19,19 @@ class ScreenshotItem extends HiveObject {
   @HiveField(4)
   final DateTime createdAt;
 
+  @HiveField(5, defaultValue: false)
+  bool isFavorite;
+
+  @HiveField(6, defaultValue: 'Uncategorized')
+  String category;
+
   ScreenshotItem({
     required this.id,
     required this.path,
     this.note = '',
     this.reminderTime,
     required this.createdAt,
+    this.isFavorite = false,
+    this.category = 'Uncategorized',
   });
 }
