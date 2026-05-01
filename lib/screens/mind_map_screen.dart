@@ -7,7 +7,9 @@ import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'capture_details_screen.dart';
+import 'category_screen.dart';
 
 class MindMapScreen extends StatefulWidget {
   const MindMapScreen({super.key});
@@ -37,17 +39,20 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     WidgetsBinding.instance.addObserver(this);
     _transformationController = TransformationController();
     _loadData();
-    // Periodic refresh for real-time updates (Increased to 10s for stability)
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (mounted) _loadData(isAutoRefresh: true);
-    });
+    
+    // Real-time updates when database changes
+    DatabaseService.box.listenable().addListener(_onDatabaseChange);
+  }
+
+  void _onDatabaseChange() {
+    if (mounted) _loadData(isAutoRefresh: true);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _transformationController.dispose();
-    _refreshTimer?.cancel();
+    DatabaseService.box.listenable().removeListener(_onDatabaseChange);
     super.dispose();
   }
 
@@ -88,13 +93,6 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
         grouped[cat] = allItems.where((item) => item.category == cat || (cat == 'General' && item.category.isEmpty)).toList();
       }
 
-      // Better change detection: Check total item count as well
-      final int totalItems = allItems.length;
-      final int oldTotalItems = _groupedItems.values.expand((x) => x).length;
-      
-      bool hasChanged = _categories.length != cats.length || totalItems != oldTotalItems;
-      if (!hasChanged && isAutoRefresh) return;
-      
       if (mounted) {
         setState(() {
           _categories = cats!;
@@ -120,9 +118,17 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     final hasItems = _groupedItems.values.any((list) => list.isNotEmpty);
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
-      navigationBar: const CupertinoNavigationBar(
-        middle: null,
+      backgroundColor: isDark ? const Color(0xFF000000) : CupertinoColors.white,
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(
+          'Mind Map',
+          style: TextStyle(
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+        ),
+        backgroundColor: (isDark ? const Color(0xFF000000) : CupertinoColors.white).withOpacity(0.8),
         border: null,
       ),
       child: LayoutBuilder(
@@ -148,7 +154,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
                       radius: 1.5,
                       colors: isDark 
                         ? [const Color(0xFF1C1C1E), const Color(0xFF000000)]
-                        : [const Color(0xFFF2F2F7), const Color(0xFFE5E5EA)],
+                        : [CupertinoColors.white, const Color(0xFFF2F2F7)],
                     ),
                   ),
                 ),
@@ -163,17 +169,6 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
                     ),
                   ),
                 ),
-              // Infinite Scrolling Grid (Outside InteractiveViewer)
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: GridPainter(
-                      isDark: isDark,
-                      transform: _transformationController.value,
-                    ),
-                  ),
-                ),
-              ),
               InteractiveViewer(
                 transformationController: _transformationController,
                 boundaryMargin: const EdgeInsets.all(2500),
@@ -186,6 +181,14 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
                   child: RepaintBoundary(
                     child: Stack(
                       children: [
+                        // Background Grid (Inside InteractiveViewer for perfect sync)
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: GridPainter(
+                              isDark: isDark,
+                            ),
+                          ),
+                        ),
                         Positioned.fill(
                           child: CustomPaint(
                             painter: MindMapPainter(
@@ -451,29 +454,35 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
 
       double centerX = 2500;
       double centerY = 2500;
-      double radius = 450;
+        double radius = 600; // Increased for more space
 
-      for (int i = 0; i < activeDates.length; i++) {
-        double angle = (2 * pi * i) / activeDates.length;
-        double catX = centerX + radius * cos(angle);
-        double catY = centerY + radius * sin(angle);
+        for (int i = 0; i < activeDates.length; i++) {
+          double angle = (2 * pi * i) / activeDates.length;
+          double catX = centerX + radius * cos(angle);
+          double catY = centerY + radius * sin(angle);
 
-        widgets.add(_buildDraggableNode(catX, catY, activeDates[i], CupertinoColors.systemIndigo, 'date_${activeDates[i]}'));
+          widgets.add(_buildDraggableNode(catX, catY, activeDates[i], CupertinoColors.systemIndigo, 'date_${activeDates[i]}'));
 
-        final items = dateGroups[activeDates[i]]!;
-        double subRadius = 220;
-        int maxItemsToShow = min(items.length, 6);
-        
-        for (int j = 0; j < maxItemsToShow; j++) {
-          double arcSweep = pi / 1.5;
-          double subAngle = angle - (arcSweep / 2) + (arcSweep * j / (maxItemsToShow > 1 ? maxItemsToShow - 1 : 1));
-          if (maxItemsToShow == 1) subAngle = angle;
+          final items = dateGroups[activeDates[i]]!;
           
-          double itemX = catX + subRadius * cos(subAngle);
-          double itemY = catY + subRadius * sin(subAngle);
-          widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
+          for (int j = 0; j < items.length; j++) {
+            // Concentric circle layout for many items
+            int layer = (j / 6).floor();
+            int indexInLayer = j % 6;
+            int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) 
+                ? min(6, items.length - layer * 6) 
+                : 6;
+
+            double layerRadius = 220.0 + (layer * 140.0);
+            double arcSweep = pi / (1.2 + (layer * 0.2));
+            double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
+            if (itemsInThisLayer == 1) subAngle = angle;
+            
+            double itemX = catX + layerRadius * cos(subAngle);
+            double itemY = catY + layerRadius * sin(subAngle);
+            widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
+          }
         }
-      }
       return widgets;
     }
 
@@ -481,31 +490,36 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     List<Widget> widgets = [];
     double centerX = 2500;
     double centerY = 2500;
-    double radius = 450; 
+      double radius = 600; // Increased for more space
 
-    for (int i = 0; i < _categories.length; i++) {
-      double angle = (2 * pi * i) / _categories.length;
-      double catX = centerX + radius * cos(angle);
-      double catY = centerY + radius * sin(angle);
+      for (int i = 0; i < _categories.length; i++) {
+        double angle = (2 * pi * i) / _categories.length;
+        double catX = centerX + radius * cos(angle);
+        double catY = centerY + radius * sin(angle);
 
-      widgets.add(_buildDraggableNode(catX, catY, _categories[i], _getCategoryColor(i), 'cat_${_categories[i]}'));
+        final color = _getCategoryColor(i);
+        widgets.add(_buildDraggableNode(catX, catY, _categories[i], color, 'cat_${_categories[i]}'));
 
-      final items = _groupedItems[_categories[i]] ?? [];
-      double subRadius = 220; // Synced with painter
-      int maxItemsToShow = min(items.length, 6); // Slightly fewer items for better spacing
-      
-      for (int j = 0; j < maxItemsToShow; j++) {
-        // Spread sub-items in an arc around the category node
-        double arcSweep = pi / 1.5;
-        double subAngle = angle - (arcSweep / 2) + (arcSweep * j / (maxItemsToShow > 1 ? maxItemsToShow - 1 : 1));
-        if (maxItemsToShow == 1) subAngle = angle;
+        final items = _groupedItems[_categories[i]] ?? [];
         
-        double itemX = catX + subRadius * cos(subAngle);
-        double itemY = catY + subRadius * sin(subAngle);
+        for (int j = 0; j < items.length; j++) {
+          // Dynamic multi-layer layout
+          int layer = (j / 6).floor();
+          int indexInLayer = j % 6;
+          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) 
+                ? min(6, items.length - layer * 6) 
+                : 6;
 
-        widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
+          double layerRadius = 220.0 + (layer * 140.0);
+          double arcSweep = pi / (1.2 + (layer * 0.2));
+          double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
+          if (itemsInThisLayer == 1) subAngle = angle;
+          
+          double itemX = catX + layerRadius * cos(subAngle);
+          double itemY = catY + layerRadius * sin(subAngle);
+          widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
+        }
       }
-    }
     return widgets;
   }
 
@@ -519,6 +533,21 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
           // Direct update for better performance
           _customOffsets[id] = pos + details.delta;
           setState(() {}); 
+        },
+        onTap: () {
+          if (!isCenter) {
+            final categoryName = label;
+            final items = _groupedItems[categoryName] ?? [];
+            Navigator.push(
+              context,
+              CupertinoPageRoute(
+                builder: (context) => CategoryDetailScreen(
+                  category: categoryName,
+                  items: items,
+                ),
+              ),
+            );
+          }
         },
         child: AnimatedScale(
           scale: 1.0, // Can be expanded for hover effects later
@@ -773,7 +802,7 @@ class MindMapPainter extends CustomPainter {
     final double defCenterY = 2500.0;
     final centerPos = _getPos('root', defCenterX, defCenterY);
     
-    final radius = 450.0; // Synced with builder
+    final radius = 600.0; // Synced with builder
 
     if (categories.isEmpty) return;
 
@@ -795,8 +824,14 @@ class MindMapPainter extends CustomPainter {
         double ctrlY = (centerPos.dy + itemPos.dy) / 2 + 30 * sin(angle + pi/2);
         path.quadraticBezierTo(ctrlX, ctrlY, itemPos.dx, itemPos.dy);
         
+        // Organic Glow
+        paint.strokeWidth = 4.0;
+        paint.color = CupertinoColors.activeBlue.withOpacity(0.04);
         paint.shader = null;
-        paint.color = CupertinoColors.activeBlue.withOpacity(0.1);
+        canvas.drawPath(path, paint);
+
+        paint.strokeWidth = 1.5;
+        paint.color = CupertinoColors.activeBlue.withOpacity(0.15);
         canvas.drawPath(path, paint);
       }
     } else if (viewMode == 2) {
@@ -835,21 +870,35 @@ class MindMapPainter extends CustomPainter {
         double ctrlY = (centerPos.dy + catPos.dy) / 2 + 60 * sin(angle + pi/2);
         path.quadraticBezierTo(ctrlX, ctrlY, catPos.dx, catPos.dy);
         
+        // Glow effect for Date branches
+        paint.strokeWidth = 6.0;
+        paint.color = CupertinoColors.systemIndigo.withOpacity(0.08);
         paint.shader = null;
-        paint.color = CupertinoColors.systemIndigo.withOpacity(0.4);
+        canvas.drawPath(path, paint);
+
+        paint.strokeWidth = 2.5;
+        final indigoGradient = LinearGradient(
+          colors: [CupertinoColors.systemIndigo.withOpacity(0.2), CupertinoColors.systemIndigo.withOpacity(0.7)],
+        ).createShader(Rect.fromPoints(centerPos, catPos));
+        paint.shader = indigoGradient;
         canvas.drawPath(path, paint);
 
         final items = dateGroups[label] ?? [];
-        double subRadius = 220.0;
-        int maxItemsToShow = min(items.length, 6);
+        
+        for (int j = 0; j < items.length; j++) {
+          int layer = (j / 6).floor();
+          int indexInLayer = j % 6;
+          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) 
+                ? min(6, items.length - layer * 6) 
+                : 6;
 
-        for (int j = 0; j < maxItemsToShow; j++) {
-          double arcSweep = pi / 1.5;
-          double subAngle = angle - (arcSweep / 2) + (arcSweep * j / (maxItemsToShow > 1 ? maxItemsToShow - 1 : 1));
-          if (maxItemsToShow == 1) subAngle = angle;
+          double layerRadius = 220.0 + (layer * 140.0);
+          double arcSweep = pi / (1.2 + (layer * 0.2));
+          double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
+          if (itemsInThisLayer == 1) subAngle = angle;
           
-          double defItemX = defCatX + subRadius * cos(subAngle);
-          double defItemY = defCatY + subRadius * sin(subAngle);
+          double defItemX = defCatX + layerRadius * cos(subAngle);
+          double defItemY = defCatY + layerRadius * sin(subAngle);
           final itemPos = _getPos(items[j].id, defItemX, defItemY);
           
           Path subPath = Path();
@@ -858,7 +907,9 @@ class MindMapPainter extends CustomPainter {
           double sCtrlY = (catPos.dy + itemPos.dy) / 2 + 40 * sin(subAngle + pi/2);
           subPath.quadraticBezierTo(sCtrlX, sCtrlY, itemPos.dx, itemPos.dy);
           
-          paint.color = CupertinoColors.systemIndigo.withOpacity(0.15);
+          paint.shader = null;
+          paint.strokeWidth = 1.5;
+          paint.color = CupertinoColors.systemIndigo.withOpacity(0.4);
           canvas.drawPath(subPath, paint);
         }
       }
@@ -869,32 +920,46 @@ class MindMapPainter extends CustomPainter {
         double defCatX = defCenterX + radius * cos(angle);
         double defCatY = defCenterY + radius * sin(angle);
         final catPos = _getPos('cat_${categories[i]}', defCatX, defCatY);
-
-        // Draw curved line from Center to Category
+        // Draw curved line from Center to Category with a "Glow" effect
         Path path = Path();
         path.moveTo(centerPos.dx, centerPos.dy);
         double ctrlX = (centerPos.dx + catPos.dx) / 2 + 60 * cos(angle + pi/2);
         double ctrlY = (centerPos.dy + catPos.dy) / 2 + 60 * sin(angle + pi/2);
         path.quadraticBezierTo(ctrlX, ctrlY, catPos.dx, catPos.dy);
         
+        // Outer Glow
+        paint.strokeWidth = 6.0;
+        paint.color = CupertinoColors.activeBlue.withOpacity(isDark ? 0.05 : 0.03);
+        paint.shader = null;
+        canvas.drawPath(path, paint);
+
+        // Inner Line
+        paint.strokeWidth = 2.5;
         final lineGradient = LinearGradient(
-          colors: [CupertinoColors.activeBlue.withOpacity(0.1), CupertinoColors.activeBlue.withOpacity(0.6)],
+          colors: [
+            CupertinoColors.activeBlue.withOpacity(isDark ? 0.2 : 0.3), 
+            CupertinoColors.activeBlue.withOpacity(isDark ? 0.8 : 0.9)
+          ],
         ).createShader(Rect.fromPoints(centerPos, catPos));
-        
         paint.shader = lineGradient;
         canvas.drawPath(path, paint);
 
         final items = groupedItems[categories[i]] ?? [];
-        double subRadius = 220.0;
-        int maxItemsToShow = min(items.length, 6);
+        
+        for (int j = 0; j < items.length; j++) {
+          int layer = (j / 6).floor();
+          int indexInLayer = j % 6;
+          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) 
+                ? min(6, items.length - layer * 6) 
+                : 6;
 
-        for (int j = 0; j < maxItemsToShow; j++) {
-          double arcSweep = pi / 1.5;
-          double subAngle = angle - (arcSweep / 2) + (arcSweep * j / (maxItemsToShow > 1 ? maxItemsToShow - 1 : 1));
-          if (maxItemsToShow == 1) subAngle = angle;
+          double layerRadius = 220.0 + (layer * 140.0);
+          double arcSweep = pi / (1.2 + (layer * 0.2));
+          double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
+          if (itemsInThisLayer == 1) subAngle = angle;
           
-          double defItemX = defCatX + subRadius * cos(subAngle);
-          double defItemY = defCatY + subRadius * sin(subAngle);
+          double defItemX = defCatX + layerRadius * cos(subAngle);
+          double defItemY = defCatY + layerRadius * sin(subAngle);
           final itemPos = _getPos(items[j].id, defItemX, defItemY);
           
           Path subPath = Path();
@@ -904,7 +969,8 @@ class MindMapPainter extends CustomPainter {
           subPath.quadraticBezierTo(sCtrlX, sCtrlY, itemPos.dx, itemPos.dy);
           
           paint.shader = null;
-          paint.color = CupertinoColors.activeBlue.withOpacity(0.15);
+          paint.strokeWidth = 1.5;
+          paint.color = CupertinoColors.activeBlue.withOpacity(isDark ? 0.25 : 0.35);
           canvas.drawPath(subPath, paint);
         }
       }
@@ -917,55 +983,67 @@ class MindMapPainter extends CustomPainter {
 
 class GridPainter extends CustomPainter {
   final bool isDark;
-  final Matrix4 transform;
-  GridPainter({required this.isDark, required this.transform});
+  GridPainter({required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = (isDark ? CupertinoColors.white : CupertinoColors.black).withOpacity(0.08)
-      ..strokeWidth = 1.0;
+    // 1. Draw a radial glow centered at the hub (2500, 2500)
+    final Offset hubCenter = Offset(size.width / 2, size.height / 2);
+    final Paint glowPaint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        colors: [
+          (isDark ? CupertinoColors.activeBlue : CupertinoColors.activeBlue).withOpacity(isDark ? 0.12 : 0.15),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: hubCenter, radius: 1500));
+    
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), glowPaint);
 
-    // Extract translation and scale from matrix
-    final double scale = transform.getMaxScaleOnAxis();
-    final double tx = transform.storage[12];
-    final double ty = transform.storage[13];
+    // 2. Draw Dot Grid
+    final Paint dotPaint = Paint()
+      ..color = (isDark ? CupertinoColors.white : CupertinoColors.systemGrey2).withOpacity(isDark ? 0.18 : 0.4)
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 2.0;
 
-    const double baseSpacing = 100.0;
-    final double spacing = baseSpacing * scale;
+    const double spacing = 60.0;
 
-    // Calculate offsets for infinite scrolling effect
-    final double offsetX = tx % spacing;
-    final double offsetY = ty % spacing;
-
-    // Draw vertical lines
-    for (double x = offsetX; x <= size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-
-    // Draw horizontal lines
-    for (double y = offsetY; y <= size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    List<Offset> points = [];
+    for (double x = 0; x <= size.width; x += spacing) {
+      for (double y = 0; y <= size.height; y += spacing) {
+        points.add(Offset(x, y));
+      }
     }
     
-    // Draw secondary, more subtle grid lines if zoomed in
-    if (scale > 0.5) {
-      final subPaint = Paint()
-        ..color = paint.color.withOpacity(paint.color.opacity * 0.5)
-        ..strokeWidth = 0.5;
-      final double subSpacing = spacing / 2;
-      
-      for (double x = offsetX - subSpacing; x <= size.width; x += spacing) {
-        if (x >= 0) canvas.drawLine(Offset(x, 0), Offset(x, size.height), subPaint);
-      }
-      for (double y = offsetY - subSpacing; y <= size.height; y += spacing) {
-        if (y >= 0) canvas.drawLine(Offset(0, y), Offset(size.width, y), subPaint);
+    canvas.drawPoints(PointMode.points, points, dotPaint);
+    
+    // 3. Draw secondary smaller dots
+    final Paint subDotPaint = Paint()
+      ..color = dotPaint.color.withOpacity(dotPaint.color.opacity * 0.4)
+      ..strokeWidth = 1.0;
+    
+    const double subSpacing = spacing / 2;
+    List<Offset> subPoints = [];
+    for (double x = subSpacing; x <= size.width; x += spacing) {
+      for (double y = subSpacing; y <= size.height; y += spacing) {
+        subPoints.add(Offset(x, y));
       }
     }
+    for (double x = 0; x <= size.width; x += spacing) {
+      for (double y = subSpacing; y <= size.height; y += spacing) {
+        subPoints.add(Offset(x, y));
+      }
+    }
+    for (double x = subSpacing; x <= size.width; x += spacing) {
+      for (double y = 0; y <= size.height; y += spacing) {
+        subPoints.add(Offset(x, y));
+      }
+    }
+    canvas.drawPoints(PointMode.points, subPoints, subDotPaint);
   }
 
   @override
   bool shouldRepaint(covariant GridPainter oldDelegate) {
-    return oldDelegate.transform != transform || oldDelegate.isDark != isDark;
+    return oldDelegate.isDark != isDark;
   }
 }

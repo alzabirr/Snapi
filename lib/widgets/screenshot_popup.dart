@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/speech_service.dart';
+import '../services/ocr_service.dart';
 
 class ScreenshotPopup extends StatefulWidget {
   final AssetEntity? asset;
@@ -11,7 +12,7 @@ class ScreenshotPopup extends StatefulWidget {
   final String? initialNote;
   final String? initialCategory;
   final DateTime? initialReminder;
-  final Function(String note, String category, DateTime? reminder) onSave;
+  final Function(String note, String category, DateTime? reminder, String extractedText) onSave;
   final VoidCallback? onDelete;
 
   const ScreenshotPopup({
@@ -38,6 +39,8 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
   File? _imageFile;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  String _extractedText = '';
+  bool _isOcrRunning = false;
 
   @override
   void initState() {
@@ -80,6 +83,20 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
 
     if (mounted) {
       setState(() {});
+      _runOCR();
+    }
+  }
+
+  Future<void> _runOCR() async {
+    if (_imageFile == null) return;
+    
+    setState(() => _isOcrRunning = true);
+    final text = await OCRService.extractText(_imageFile!.path);
+    if (mounted) {
+      setState(() {
+        _extractedText = text;
+        _isOcrRunning = false;
+      });
     }
   }
 
@@ -465,7 +482,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                             color: CupertinoColors.activeBlue,
                             borderRadius: BorderRadius.circular(20),
                             onPressed: () {
-                              widget.onSave(_noteController.text, _selectedCategory, _selectedReminder);
+                              widget.onSave(_noteController.text, _selectedCategory, _selectedReminder, _extractedText);
                               Navigator.pop(context);
                             },
                             child: Center(

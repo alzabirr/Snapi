@@ -173,6 +173,9 @@ class _FolderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get up to 3 latest images for the stack effect
+    final stackItems = items.take(3).toList();
+    
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -186,30 +189,150 @@ class _FolderCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Colorful Folder Icon (Matching Image Style)
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              Icon(
-                CupertinoIcons.folder_fill,
-                size: 70,
-                color: color.withOpacity(isDark ? 0.8 : 0.9),
-              ),
-              // Optional: Sub-icon or glow
-              Positioned(
-                bottom: 18,
-                child: Container(
-                  width: 20,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: CupertinoColors.white.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
+          // Stacked Images & Folder Icon
+          SizedBox(
+            width: 100,
+            height: 90,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                // Back Images (Stacked and Rotated)
+                if (stackItems.length >= 3)
+                  Positioned(
+                    top: 5,
+                    left: 20,
+                    child: Transform.rotate(
+                      angle: -0.15,
+                      child: _buildPeekImage(stackItems[2].path),
+                    ),
+                  ),
+                if (stackItems.length >= 2)
+                  Positioned(
+                    top: 2,
+                    right: 20,
+                    child: Transform.rotate(
+                      angle: 0.1,
+                      child: _buildPeekImage(stackItems[1].path),
+                    ),
+                  ),
+                if (stackItems.isNotEmpty)
+                  Positioned(
+                    top: -5,
+                    child: Transform.rotate(
+                      angle: -0.05,
+                      child: _buildPeekImage(stackItems[0].path),
+                    ),
+                  ),
+                
+                // Front Folder Icon
+                // Custom Premium Folder Design
+                Positioned(
+                  bottom: 0,
+                  child: SizedBox(
+                    width: 76,
+                    height: 64,
+                    child: Stack(
+                      children: [
+                        // Back Flap of Folder
+                        Container(
+                          width: 76,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                color.withOpacity(0.85),
+                                color.withOpacity(1.0),
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(15),
+                              bottomLeft: Radius.circular(15),
+                              bottomRight: Radius.circular(15),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Folder Tab
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          child: Container(
+                            width: 32,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.9),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(8),
+                                topRight: Radius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Inner Content Shadow (Depth)
+                        Positioned(
+                          top: 15,
+                          left: 4,
+                          right: 4,
+                          child: Container(
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.black.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                        // Front Flap (Transparent, No Blur)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  CupertinoColors.white.withOpacity(0.3),
+                                  CupertinoColors.white.withOpacity(0.1),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(
+                                color: CupertinoColors.white.withOpacity(0.25),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 14,
+                                height: 2,
+                                decoration: BoxDecoration(
+                                  color: CupertinoColors.white.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(1),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 16),
           Text(
             category,
             textAlign: TextAlign.center,
@@ -217,7 +340,7 @@ class _FolderCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               letterSpacing: -0.2,
             ),
           ),
@@ -227,10 +350,35 @@ class _FolderCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               color: CupertinoColors.systemGrey.resolveFrom(context),
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPeekImage(String path) {
+    return Container(
+      width: 55,
+      height: 55,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: CupertinoColors.white, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: CupertinoColors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(path),
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
@@ -273,20 +421,135 @@ class CategoryDetailScreen extends StatelessWidget {
                         builder: (context) => CaptureDetailsScreen(item: item),
                       ),
                     ),
-                    child: Hero(
-                      tag: 'category_item_${item.id}',
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: CupertinoColors.label.resolveFrom(context).withOpacity(0.1),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: CupertinoTheme.of(context).brightness == Brightness.dark 
+                          ? [] 
+                          : [
+                              BoxShadow(
+                                color: CupertinoColors.systemFill.resolveFrom(context),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Main Image
+                          Hero(
+                            tag: 'category_item_${item.id}',
+                            child: Image.file(
+                              File(item.path),
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                color: CupertinoColors.systemGrey6,
+                                child: const Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey),
+                              ),
+                            ),
                           ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Image.file(
-                          File(item.path),
-                          fit: BoxFit.cover,
-                        ),
+                          
+                          // Sophisticated Gradient Overlay
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  stops: const [0.0, 0.4, 0.7, 1.0],
+                                  colors: [
+                                    CupertinoColors.black.withOpacity(0.2),
+                                    CupertinoColors.transparent,
+                                    CupertinoColors.black.withOpacity(0.3),
+                                    CupertinoColors.black.withOpacity(0.7),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Glassmorphic Info Plate
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: ClipRRect(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.all(14.0),
+                                  decoration: BoxDecoration(
+                                    color: CupertinoTheme.of(context).brightness == Brightness.dark 
+                                        ? const Color(0xFF1A1A1A).withOpacity(0.7)
+                                        : CupertinoColors.white.withOpacity(0.85),
+                                    border: Border(
+                                      top: BorderSide(
+                                        color: CupertinoColors.label.resolveFrom(context).withOpacity(0.12),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        item.note.isNotEmpty ? item.note : 'Untitled Note',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          color: CupertinoColors.label.resolveFrom(context),
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            '${item.createdAt.day} ${_getMonthName(item.createdAt.month)}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: CupertinoColors.systemGrey.withOpacity(0.8),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          if (item.reminderTime != null)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: CupertinoColors.activeBlue.withOpacity(0.15),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(CupertinoIcons.bell_fill, size: 10, color: CupertinoColors.activeBlue),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    item.reminderTime!.toString().substring(11, 16),
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color: CupertinoColors.activeBlue,
+                                                      fontWeight: FontWeight.w800,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -298,5 +561,10 @@ class CategoryDetailScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getMonthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
   }
 }

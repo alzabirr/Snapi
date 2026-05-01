@@ -42,7 +42,8 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _filteredItems = _allItems.where((item) {
         final matchesQuery = item.note.toLowerCase().contains(query) || 
-                             item.category.toLowerCase().contains(query);
+                             item.category.toLowerCase().contains(query) ||
+                             item.extractedText.toLowerCase().contains(query);
         final matchesFavorite = !_showFavoritesOnly || item.isFavorite;
         return matchesQuery && matchesFavorite;
       }).toList();
@@ -75,7 +76,7 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.all(16.0),
               child: CupertinoSearchTextField(
                 controller: _searchController,
-                placeholder: 'Search notes, categories...',
+                placeholder: 'Search notes, text inside images...',
               ),
             ),
             Expanded(

@@ -25,6 +25,9 @@ class ScreenshotItem extends HiveObject {
   @HiveField(6, defaultValue: 'Uncategorized')
   String category;
 
+  @HiveField(7, defaultValue: '')
+  String extractedText;
+
   ScreenshotItem({
     required this.id,
     required this.path,
@@ -33,5 +36,6 @@ class ScreenshotItem extends HiveObject {
     required this.createdAt,
     this.isFavorite = false,
     this.category = 'Uncategorized',
+    this.extractedText = '',
   });
 }

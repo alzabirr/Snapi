@@ -78,14 +78,18 @@ class _AddScreenState extends State<AddScreen> {
       barrierDismissible: false,
       builder: (context) => ScreenshotPopup(
         asset: asset,
-        onSave: (note, category, reminder) async {
+        onSave: (note, category, reminder, extractedText) async {
+          final file = await asset.file;
+          if (file == null) return;
+
           final newItem = ScreenshotItem(
             id: asset.id,
-            path: (await asset.file)!.path,
+            path: file.path,
             note: note,
             category: category,
             reminderTime: reminder,
             createdAt: DateTime.now(),
+            extractedText: extractedText,
           );
           await DatabaseService.addItem(newItem);
           

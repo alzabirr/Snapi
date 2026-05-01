@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,20 +14,23 @@ class BackgroundService {
   static Future<void> initialize() async {
     final service = FlutterBackgroundService();
 
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'snapshot_memo_background', // id
-      'Background Monitoring', // title
-      description: 'Used for detecting screenshots in the background',
-      importance: Importance.low, // Low importance to avoid sound/vibration for the persistence
-    );
-
+    // Create notification channel first
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
 
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'snapshot_memo_background', // id
+        'Background Monitoring', // title
+        description: 'Used for detecting screenshots in the background',
+        importance: Importance.low,
+      );
+
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+    }
 
     await service.configure(
       androidConfiguration: AndroidConfiguration(
@@ -33,8 +38,8 @@ class BackgroundService {
         autoStart: true,
         isForegroundMode: true,
         notificationChannelId: 'snapshot_memo_background',
-        initialNotificationTitle: 'Snapshot Memo is running',
-        initialNotificationContent: 'Monitoring for new screenshots...',
+        initialNotificationTitle: 'Snapshot Memo',
+        initialNotificationContent: 'Monitoring for screenshots...',
         foregroundServiceNotificationId: 888,
       ),
       iosConfiguration: IosConfiguration(
@@ -43,6 +48,9 @@ class BackgroundService {
         onBackground: onIosBackground,
       ),
     );
+    
+    // Start it explicitly just in case autoStart fails
+    await service.startService();
   }
 
   @pragma('vm:entry-point')

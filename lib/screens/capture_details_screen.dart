@@ -126,9 +126,7 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
 
       if (recognizedText.text.isNotEmpty) {
         setState(() {
-          _currentItem.note = _currentItem.note.isNotEmpty 
-              ? '${_currentItem.note}\n\n[Extracted Text]:\n${recognizedText.text}'
-              : recognizedText.text;
+          _currentItem.extractedText = recognizedText.text.replaceAll('\n', ' ').trim();
         });
         await DatabaseService.addItem(_currentItem);
       } else {
@@ -164,11 +162,15 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
         initialCategory: _currentItem.category,
         initialReminder: _currentItem.reminderTime,
         imagePath: _currentItem.path,
-        onSave: (note, category, reminder) async {
+        onSave: (note, category, reminder, extractedText) async {
           setState(() {
             _currentItem.note = note;
             _currentItem.category = category;
             _currentItem.reminderTime = reminder;
+            // Only update extracted text if it was empty before
+            if (_currentItem.extractedText.isEmpty) {
+              _currentItem.extractedText = extractedText;
+            }
           });
           await DatabaseService.addItem(_currentItem);
           
@@ -360,10 +362,54 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                                 fontSize: 18,
                                 color: CupertinoColors.label.resolveFrom(context),
                                 height: 1.6,
-                                fontWeight: FontWeight.w400,
+                                fontWeight: FontWeight.w500,
                                 letterSpacing: 0.2,
                               ),
                             ),
+                            
+                            if (_currentItem.extractedText.isNotEmpty) ...[
+                              const SizedBox(height: 32),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: CupertinoColors.systemOrange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'AI RECOGNIZED TEXT',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: CupertinoColors.systemOrange,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: isDark 
+                                      ? CupertinoColors.white.withOpacity(0.03) 
+                                      : CupertinoColors.black.withOpacity(0.03),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: CupertinoColors.label.resolveFrom(context).withOpacity(0.05),
+                                  ),
+                                ),
+                                child: Text(
+                                  _currentItem.extractedText,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: CupertinoColors.label.resolveFrom(context).withOpacity(0.7),
+                                    height: 1.5,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            
                             const SizedBox(height: 48),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -375,10 +421,11 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                                   color: CupertinoColors.label.resolveFrom(context),
                                 ),
                                 _ActionButton(
-                                  icon: CupertinoIcons.doc_text_viewfinder,
-                                  label: 'OCR',
+                                  icon: CupertinoIcons.sparkles,
+                                  label: _isExtractingText ? 'Reading...' : 'Magic Read',
                                   onPressed: _isExtractingText ? () {} : _extractText,
                                   color: CupertinoColors.systemOrange,
+                                  isLoading: _isExtractingText,
                                 ),
                                 _ActionButton(
                                   icon: CupertinoIcons.arrowshape_turn_up_right_circle_fill,
@@ -487,19 +534,21 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final Color color;
+  final bool isLoading;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onPressed,
     required this.color,
+    this.isLoading = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return CupertinoButton(
       padding: EdgeInsets.zero,
-      onPressed: onPressed,
+      onPressed: isLoading ? null : onPressed,
       child: Column(
         children: [
           Container(
@@ -519,7 +568,13 @@ class _ActionButton extends StatelessWidget {
                 width: 1,
               ),
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: isLoading 
+              ? const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CupertinoActivityIndicator(radius: 10),
+                )
+              : Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 8),
           Text(

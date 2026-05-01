@@ -7,9 +7,19 @@ class DatabaseService {
 
   static Future<void> init() async {
     await Hive.initFlutter();
-    Hive.registerAdapter(ScreenshotItemAdapter());
-    await Hive.openBox<ScreenshotItem>(boxName);
-    await Hive.openBox<ScreenshotItem>(deletedBoxName);
+    if (!Hive.isAdapterRegistered(0)) { // 0 is default id if not specified in @HiveType
+      try {
+        Hive.registerAdapter(ScreenshotItemAdapter());
+      } catch (_) {
+        // Fallback if ID is different or already registered
+      }
+    }
+    if (!Hive.isBoxOpen(boxName)) {
+      await Hive.openBox<ScreenshotItem>(boxName);
+    }
+    if (!Hive.isBoxOpen(deletedBoxName)) {
+      await Hive.openBox<ScreenshotItem>(deletedBoxName);
+    }
   }
 
   static Box<ScreenshotItem> get box => Hive.box<ScreenshotItem>(boxName);

@@ -4,6 +4,7 @@ import '../main.dart';
 import '../services/database_service.dart';
 import '../services/screenshot_service.dart';
 import 'recycle_bin_screen.dart';
+import 'category_manager_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,43 +14,19 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _isAutoDetectEnabled = true;
   int _totalCaptures = 0;
   int _deletedCaptures = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
     _loadStats();
   }
-
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isAutoDetectEnabled = prefs.getBool('autoDetect') ?? true;
-    });
-  }
-
   void _loadStats() {
     setState(() {
       _totalCaptures = DatabaseService.getAllItems().length;
       _deletedCaptures = DatabaseService.getDeletedItems().length;
     });
-  }
-
-  Future<void> _toggleAutoDetect(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('autoDetect', value);
-    setState(() {
-      _isAutoDetectEnabled = value;
-    });
-    
-    if (value) {
-      ScreenshotService.startMonitoring();
-    } else {
-      ScreenshotService.stopMonitoring();
-    }
   }
 
   @override
@@ -79,19 +56,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                 ),
-              ],
-            ),
-            CupertinoListSection.insetGrouped(
-              header: const Text('Monitoring'),
-              children: [
                 CupertinoListTile(
-                  title: const Text('Auto-Detect Screenshots'),
-                  subtitle: const Text('Automatically prompt for notes'),
-                  leading: const Icon(CupertinoIcons.bolt_fill, color: CupertinoColors.systemYellow),
-                  trailing: CupertinoSwitch(
-                    value: _isAutoDetectEnabled,
-                    onChanged: _toggleAutoDetect,
-                  ),
+                  title: const Text('Manage Folders'),
+                  leading: const Icon(CupertinoIcons.folder_badge_plus, color: CupertinoColors.activeBlue),
+                  trailing: const CupertinoListTileChevron(),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(builder: (context) => const CategoryManagerScreen()),
+                    );
+                  },
                 ),
               ],
             ),
@@ -136,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context: context,
                       builder: (context) => CupertinoAlertDialog(
                         title: const Text('Privacy Policy'),
-                        content: const Text('All your screenshots and notes stay safely on your device. We do not upload any personal data to the cloud.'),
+                        content: const Text('Your screenshots and notes stay safely on your device. We don’t upload any personal data to the cloud mainly because we don’t have personal servers, and honestly running them would be too expensive.'),
                         actions: [
                           CupertinoDialogAction(
                             child: const Text('OK'),

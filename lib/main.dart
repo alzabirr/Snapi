@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'services/database_service.dart';
 import 'services/notification_service.dart';
 import 'services/speech_service.dart';
+import 'services/screenshot_service.dart';
 import 'services/background_service.dart';
+import 'models/screenshot_item.dart';
+import 'widgets/screenshot_popup.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/main_screen.dart';
 
@@ -31,6 +36,12 @@ void main() async {
     debugPrint('SpeechService init failed: $e');
   }
 
+  try {
+    await BackgroundService.initialize();
+  } catch (e) {
+    debugPrint('BackgroundService init failed: $e');
+  }
+
   // Check persistent storage for onboarding state
   Widget initialWidget = const OnboardingScreen();
   try {
@@ -39,12 +50,6 @@ void main() async {
     
     if (seenOnboarding) {
       initialWidget = const MainScreen();
-      // Only initialize background service if permissions were likely granted
-      try {
-        await BackgroundService.initialize();
-      } catch (e) {
-        debugPrint('BackgroundService init failed: $e');
-      }
     }
   } catch (e) {
     debugPrint('Startup preferences check failed: $e');
@@ -65,13 +70,157 @@ class SnapshotMemoApp extends StatefulWidget {
   State<SnapshotMemoApp> createState() => _SnapshotMemoAppState();
 }
 
-class _SnapshotMemoAppState extends State<SnapshotMemoApp> {
+class _SnapshotMemoAppState extends State<SnapshotMemoApp> with WidgetsBindingObserver {
   Brightness _brightness = Brightness.dark;
+  StreamSubscription? _screenshotSubscription;
+  StreamSubscription? _notificationSubscription;
+  final Set<String> _pendingPopups = {};
+  bool _monitoringStarted = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadTheme();
+    // Start monitoring after the first frame so navigatorKey is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initScreenshotMonitoring();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _screenshotSubscription?.cancel();
+    _notificationSubscription?.cancel();
+    ScreenshotService.stopMonitoring();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_monitoringStarted) {
+      _initScreenshotMonitoring();
+    }
+  }
+
+  Future<void> _initScreenshotMonitoring() async {
+    if (_monitoringStarted) return;
+
+    // Only start if onboarding is complete
+    final prefs = await SharedPreferences.getInstance();
+    final bool seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+    if (!seenOnboarding) return;
+
+    _monitoringStarted = true;
+
+    // Listen for screenshot detections
+    _screenshotSubscription = ScreenshotService.screenshotStream.listen((asset) {
+      debugPrint('DEBUG: Screenshot stream received asset: ${asset.id}');
+      _showNotePopup(asset);
+    });
+
+    // Listen for notification taps
+    _notificationSubscription = NotificationService.notificationStream.listen((assetId) async {
+      debugPrint('DEBUG: Notification tapped for assetId: $assetId');
+      final asset = await AssetEntity.fromId(assetId);
+      if (asset != null) {
+        _showNotePopup(asset);
+      }
+    });
+
+    // Request notification permission
+    try {
+      await NotificationService.requestPermission();
+    } catch (_) {}
+
+    // Start the screenshot monitoring
+    await ScreenshotService.startMonitoring();
+  }
+
+  void _showNotePopup(AssetEntity asset) {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) {
+      debugPrint('DEBUG: No navigator state available for popup.');
+      return;
+    }
+
+    // Prevent duplicate popups
+    if (_pendingPopups.contains(asset.id)) {
+      debugPrint('DEBUG: Screenshot ${asset.id} already has an active popup. Skipping.');
+      return;
+    }
+
+    // Check if already saved
+    final existingItems = DatabaseService.getAllItems();
+    final alreadyExists = existingItems.any((item) => item.id == asset.id);
+    if (alreadyExists) {
+      debugPrint('DEBUG: Screenshot ${asset.id} already exists in database. Skipping popup.');
+      return;
+    }
+
+    _pendingPopups.add(asset.id);
+    debugPrint('DEBUG: Showing popup for asset: ${asset.id}');
+
+    // Use showGeneralDialog to bypass Hero system entirely
+    showGeneralDialog(
+      context: navigator.context,
+      barrierDismissible: false,
+      barrierLabel: 'Screenshot Popup',
+      barrierColor: CupertinoColors.black.withOpacity(0.4),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: ScreenshotPopup(
+            asset: asset,
+            onSave: (note, category, reminder, extractedText) async {
+              _pendingPopups.remove(asset.id);
+              final file = await asset.file;
+              if (file == null) {
+                debugPrint('DEBUG: Error - asset file is null.');
+                return;
+              }
+
+              final newItem = ScreenshotItem(
+                id: asset.id,
+                path: file.path,
+                note: note,
+                category: category,
+                reminderTime: reminder,
+                createdAt: DateTime.now(),
+                extractedText: extractedText,
+              );
+              await DatabaseService.addItem(newItem);
+
+              if (reminder != null) {
+                NotificationService.scheduleReminder(
+                  id: asset.id.hashCode,
+                  title: 'Screenshot Reminder',
+                  body: note.isNotEmpty ? note : 'View your screenshot note',
+                  scheduledDate: reminder,
+                  payload: asset.id,
+                );
+              }
+            },
+            onDelete: () {
+              _pendingPopups.remove(asset.id);
+            },
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          child: child,
+        );
+      },
+    ).then((_) {
+      _pendingPopups.remove(asset.id);
+    });
   }
 
   Future<void> _loadTheme() async {
