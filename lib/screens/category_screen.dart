@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import 'capture_details_screen.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -22,12 +23,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
     super.initState();
     _loadCategories();
     _loadItems();
+    DatabaseService.box.listenable().addListener(_onDatabaseChange);
+    DatabaseService.categoryNotifier.addListener(_onDatabaseChange);
+  }
+
+  @override
+  void dispose() {
+    DatabaseService.box.listenable().removeListener(_onDatabaseChange);
+    DatabaseService.categoryNotifier.removeListener(_onDatabaseChange);
+    super.dispose();
+  }
+
+  void _onDatabaseChange() {
+    if (mounted) {
+      _loadCategories().then((_) {
+        _loadItems();
+      });
+    }
   }
 
   Future<void> _loadCategories() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList('user_categories');
-    if (saved != null) {
+    if (saved != null && mounted) {
       setState(() {
         _allCategories = saved;
       });
@@ -40,6 +58,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   void _loadItems() {
+    if (!mounted) return;
     final allItems = DatabaseService.getAllItems();
     final Map<String, List<ScreenshotItem>> grouped = {};
     
@@ -253,13 +272,7 @@ class _FolderCard extends StatelessWidget {
                               bottomLeft: Radius.circular(15),
                               bottomRight: Radius.circular(15),
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: color.withOpacity(0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                            // Shadow removed per user request
                           ),
                         ),
                         // Folder Tab
@@ -291,7 +304,7 @@ class _FolderCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // Front Flap (Transparent, No Blur)
+                        // Front Flap (Solid)
                         Positioned(
                           bottom: 0,
                           left: 0,
@@ -303,13 +316,13 @@ class _FolderCard extends StatelessWidget {
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  CupertinoColors.white.withOpacity(0.3),
-                                  CupertinoColors.white.withOpacity(0.1),
+                                  color,
+                                  color.withOpacity(0.9), // Keep it mostly solid
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(15),
                               border: Border.all(
-                                color: CupertinoColors.white.withOpacity(0.25),
+                                color: CupertinoColors.white.withOpacity(0.2),
                                 width: 0.5,
                               ),
                             ),
@@ -378,6 +391,7 @@ class _FolderCard extends StatelessWidget {
         child: Image.file(
           File(path),
           fit: BoxFit.cover,
+          cacheWidth: 150,
         ),
       ),
     );
@@ -444,6 +458,7 @@ class CategoryDetailScreen extends StatelessWidget {
                             child: Image.file(
                               File(item.path),
                               fit: BoxFit.cover,
+                              cacheWidth: 400,
                               width: double.infinity,
                               errorBuilder: (context, error, stackTrace) => Container(
                                 color: CupertinoColors.systemGrey6,

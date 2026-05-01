@@ -42,6 +42,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     
     // Real-time updates when database changes
     DatabaseService.box.listenable().addListener(_onDatabaseChange);
+    DatabaseService.categoryNotifier.addListener(_onDatabaseChange);
   }
 
   void _onDatabaseChange() {
@@ -53,6 +54,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     WidgetsBinding.instance.removeObserver(this);
     _transformationController.dispose();
     DatabaseService.box.listenable().removeListener(_onDatabaseChange);
+    DatabaseService.categoryNotifier.removeListener(_onDatabaseChange);
     super.dispose();
   }
 
@@ -404,9 +406,13 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
       double radius = 550;
 
       for (int i = 0; i < allItems.length; i++) {
-        double angle = (2 * pi * i) / (allItems.length > 0 ? allItems.length : 1);
-        double itemX = centerX + radius * cos(angle);
-        double itemY = centerY + radius * sin(angle);
+        // Golden Spiral for beautiful organic layout
+        double goldenAngle = pi * (3 - sqrt(5)); 
+        double theta = i * goldenAngle;
+        double r = 160 + (90 * sqrt(i)); // Expands outward
+
+        double itemX = centerX + r * cos(theta);
+        double itemY = centerY + r * sin(theta);
         widgets.add(_buildDraggableItemNode(itemX, itemY, allItems[i]));
       }
       return widgets;
@@ -492,34 +498,38 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     double centerY = 2500;
       double radius = 600; // Increased for more space
 
-      for (int i = 0; i < _categories.length; i++) {
-        double angle = (2 * pi * i) / _categories.length;
-        double catX = centerX + radius * cos(angle);
-        double catY = centerY + radius * sin(angle);
+    for (int i = 0; i < _categories.length; i++) {
+      double angle = (2 * pi * i) / _categories.length;
+      // Staggered radii for dynamic constellation layout
+      double catRadius = 750.0 + (i % 2 == 0 ? 0 : 350.0);
+      double catX = centerX + catRadius * cos(angle);
+      double catY = centerY + catRadius * sin(angle);
 
-        final color = _getCategoryColor(i);
-        widgets.add(_buildDraggableNode(catX, catY, _categories[i], color, 'cat_${_categories[i]}'));
+      final color = _getCategoryColor(i);
+      widgets.add(_buildDraggableNode(catX, catY, _categories[i], color, 'cat_${_categories[i]}'));
 
-        final items = _groupedItems[_categories[i]] ?? [];
+      final items = _groupedItems[_categories[i]] ?? [];
+      
+      for (int j = 0; j < items.length; j++) {
+        // Planetary Rings layout
+        int ring = 1;
+        int capacity = 6;
+        int currentItemCount = j;
         
-        for (int j = 0; j < items.length; j++) {
-          // Dynamic multi-layer layout
-          int layer = (j / 6).floor();
-          int indexInLayer = j % 6;
-          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) 
-                ? min(6, items.length - layer * 6) 
-                : 6;
-
-          double layerRadius = 220.0 + (layer * 140.0);
-          double arcSweep = pi / (1.2 + (layer * 0.2));
-          double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
-          if (itemsInThisLayer == 1) subAngle = angle;
-          
-          double itemX = catX + layerRadius * cos(subAngle);
-          double itemY = catY + layerRadius * sin(subAngle);
-          widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
+        while (currentItemCount >= capacity) {
+          currentItemCount -= capacity;
+          ring++;
+          capacity = ring * 6;
         }
+        
+        double ringRadius = 140.0 + (ring * 110.0);
+        double theta = angle + (2 * pi * currentItemCount) / capacity + (ring * 0.3);
+        
+        double itemX = catX + ringRadius * cos(theta);
+        double itemY = catY + ringRadius * sin(theta);
+        widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
       }
+    }
     return widgets;
   }
 
@@ -652,6 +662,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
                       Image.file(
                         File(item.path),
                         fit: BoxFit.cover,
+                        cacheWidth: 200,
                         errorBuilder: (c, e, s) => Container(
                           color: CupertinoColors.systemGrey6,
                           child: const Icon(CupertinoIcons.photo, size: 30, color: CupertinoColors.systemGrey),
@@ -811,17 +822,19 @@ class MindMapPainter extends CustomPainter {
     if (viewMode == 0) {
       // All mode: Draw lines directly from hub to all items
       final allItems = groupedItems.values.expand((x) => x).toList();
-      const double itemRadius = 550.0;
       for (int i = 0; i < allItems.length; i++) {
-        double angle = (2 * pi * i) / allItems.length;
-        double defItemX = defCenterX + itemRadius * cos(angle);
-        double defItemY = defCenterY + itemRadius * sin(angle);
+        double goldenAngle = pi * (3 - sqrt(5)); 
+        double theta = i * goldenAngle;
+        double r = 160 + (90 * sqrt(i));
+
+        double defItemX = defCenterX + r * cos(theta);
+        double defItemY = defCenterY + r * sin(theta);
         final itemPos = _getPos(allItems[i].id, defItemX, defItemY);
 
         Path path = Path();
         path.moveTo(centerPos.dx, centerPos.dy);
-        double ctrlX = (centerPos.dx + itemPos.dx) / 2 + 30 * cos(angle + pi/2);
-        double ctrlY = (centerPos.dy + itemPos.dy) / 2 + 30 * sin(angle + pi/2);
+        double ctrlX = (centerPos.dx + itemPos.dx) / 2 + 30 * cos(theta + pi/2);
+        double ctrlY = (centerPos.dy + itemPos.dy) / 2 + 30 * sin(theta + pi/2);
         path.quadraticBezierTo(ctrlX, ctrlY, itemPos.dx, itemPos.dy);
         
         // Organic Glow
@@ -917,8 +930,9 @@ class MindMapPainter extends CustomPainter {
       // Folder mode
       for (int i = 0; i < categories.length; i++) {
         double angle = (2 * pi * i) / categories.length;
-        double defCatX = defCenterX + radius * cos(angle);
-        double defCatY = defCenterY + radius * sin(angle);
+        double catRadius = 750.0 + (i % 2 == 0 ? 0 : 350.0);
+        double defCatX = defCenterX + catRadius * cos(angle);
+        double defCatY = defCenterY + catRadius * sin(angle);
         final catPos = _getPos('cat_${categories[i]}', defCatX, defCatY);
         // Draw curved line from Center to Category with a "Glow" effect
         Path path = Path();
@@ -947,25 +961,27 @@ class MindMapPainter extends CustomPainter {
         final items = groupedItems[categories[i]] ?? [];
         
         for (int j = 0; j < items.length; j++) {
-          int layer = (j / 6).floor();
-          int indexInLayer = j % 6;
-          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) 
-                ? min(6, items.length - layer * 6) 
-                : 6;
-
-          double layerRadius = 220.0 + (layer * 140.0);
-          double arcSweep = pi / (1.2 + (layer * 0.2));
-          double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
-          if (itemsInThisLayer == 1) subAngle = angle;
+          int ring = 1;
+          int capacity = 6;
+          int currentItemCount = j;
           
-          double defItemX = defCatX + layerRadius * cos(subAngle);
-          double defItemY = defCatY + layerRadius * sin(subAngle);
+          while (currentItemCount >= capacity) {
+            currentItemCount -= capacity;
+            ring++;
+            capacity = ring * 6;
+          }
+          
+          double ringRadius = 140.0 + (ring * 110.0);
+          double theta = angle + (2 * pi * currentItemCount) / capacity + (ring * 0.3);
+          
+          double defItemX = defCatX + ringRadius * cos(theta);
+          double defItemY = defCatY + ringRadius * sin(theta);
           final itemPos = _getPos(items[j].id, defItemX, defItemY);
           
           Path subPath = Path();
           subPath.moveTo(catPos.dx, catPos.dy);
-          double sCtrlX = (catPos.dx + itemPos.dx) / 2 + 40 * cos(subAngle + pi/2);
-          double sCtrlY = (catPos.dy + itemPos.dy) / 2 + 40 * sin(subAngle + pi/2);
+          double sCtrlX = (catPos.dx + itemPos.dx) / 2 + 40 * cos(theta + pi/2);
+          double sCtrlY = (catPos.dy + itemPos.dy) / 2 + 40 * sin(theta + pi/2);
           subPath.quadraticBezierTo(sCtrlX, sCtrlY, itemPos.dx, itemPos.dy);
           
           paint.shader = null;

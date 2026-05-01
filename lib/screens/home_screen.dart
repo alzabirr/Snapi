@@ -271,6 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       child: Image.file(
                                         File(item.path),
                                         fit: BoxFit.cover,
+                                        cacheWidth: 400,
                                         width: double.infinity,
                                         errorBuilder: (context, error, stackTrace) => Container(
                                           color: CupertinoColors.systemGrey6,

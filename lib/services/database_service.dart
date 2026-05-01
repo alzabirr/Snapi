@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/screenshot_item.dart';
 
 class DatabaseService {
+  static final ValueNotifier<int> categoryNotifier = ValueNotifier<int>(0);
+  
   static const String boxName = 'screenshots';
   static const String deletedBoxName = 'deleted_screenshots';
 

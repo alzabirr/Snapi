@@ -5,6 +5,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/speech_service.dart';
 import '../services/ocr_service.dart';
+import '../services/database_service.dart';
 
 class ScreenshotPopup extends StatefulWidget {
   final AssetEntity? asset;
@@ -162,6 +163,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                     _selectedCategory = name;
                   });
                   await prefs.setStringList('user_categories', _categories);
+                  DatabaseService.categoryNotifier.value++;
                 }
                 if (mounted) Navigator.pop(context);
               }
