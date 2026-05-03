@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: CupertinoSwitch(
                     value: isDark,
                     onChanged: (value) {
-                      SnapshotMemoApp.of(context).toggleTheme();
+                      EssentialSpaceApp.of(context).toggleTheme();
                     },
                   ),
                 ),

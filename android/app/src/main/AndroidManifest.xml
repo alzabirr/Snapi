@@ -22,7 +22,7 @@
     </queries>
 
     <application
-        android:label="Next Mind"
+        android:label="Essential Space"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

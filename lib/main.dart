@@ -55,22 +55,22 @@ void main() async {
     debugPrint('Startup preferences check failed: $e');
   }
   
-  runApp(SnapshotMemoApp(initialWidget: initialWidget));
+  runApp(EssentialSpaceApp(initialWidget: initialWidget));
 }
 
-class SnapshotMemoApp extends StatefulWidget {
+class EssentialSpaceApp extends StatefulWidget {
   final Widget initialWidget;
 
-  const SnapshotMemoApp({super.key, required this.initialWidget});
+  const EssentialSpaceApp({super.key, required this.initialWidget});
 
-  static _SnapshotMemoAppState of(BuildContext context) => 
-      context.findAncestorStateOfType<_SnapshotMemoAppState>()!;
+  static _EssentialSpaceAppState of(BuildContext context) => 
+      context.findAncestorStateOfType<_EssentialSpaceAppState>()!;
 
   @override
-  State<SnapshotMemoApp> createState() => _SnapshotMemoAppState();
+  State<EssentialSpaceApp> createState() => _EssentialSpaceAppState();
 }
 
-class _SnapshotMemoAppState extends State<SnapshotMemoApp> with WidgetsBindingObserver {
+class _EssentialSpaceAppState extends State<EssentialSpaceApp> with WidgetsBindingObserver {
   Brightness _brightness = Brightness.dark;
   StreamSubscription? _screenshotSubscription;
   StreamSubscription? _notificationSubscription;
@@ -243,7 +243,7 @@ class _SnapshotMemoAppState extends State<SnapshotMemoApp> with WidgetsBindingOb
   Widget build(BuildContext context) {
     return CupertinoApp(
       navigatorKey: navigatorKey,
-      title: 'SnapshotMemo',
+      title: 'Essential Space',
       theme: CupertinoThemeData(
         primaryColor: CupertinoColors.activeBlue,
         brightness: _brightness,

@@ -149,7 +149,7 @@ else {
               
               // Title
               Text(
-                'SnapshotMemo',
+                'Essential Space',
                 style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle.copyWith(
                   fontSize: 34,
                   fontWeight: FontWeight.w800,
