@@ -9,8 +9,8 @@ import 'services/screenshot_service.dart';
 import 'services/background_service.dart';
 import 'models/screenshot_item.dart';
 import 'widgets/screenshot_popup.dart';
-import 'screens/onboarding_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/permissions_slider_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -43,7 +43,7 @@ void main() async {
   }
 
   // Check persistent storage for onboarding state
-  Widget initialWidget = const OnboardingScreen();
+  Widget initialWidget = const PermissionsSliderScreen();
   try {
     final prefs = await SharedPreferences.getInstance();
     final bool seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
@@ -253,6 +253,10 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
       ),
       home: widget.initialWidget,
       debugShowCheckedModeBanner: false,
+      routes: {
+        '/permissions_slider': (context) => const PermissionsSliderScreen(),
+        '/home': (context) => const MainScreen(),
+      },
     );
   }
 }
