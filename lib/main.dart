@@ -71,7 +71,7 @@ class SnapiApp extends StatefulWidget {
 }
 
 class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
-  Brightness _brightness = Brightness.dark;
+  Brightness _brightness = Brightness.light;
   StreamSubscription? _screenshotSubscription;
   StreamSubscription? _notificationSubscription;
   final Set<String> _pendingPopups = {};
@@ -225,7 +225,7 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('isDark') ?? true;
+    final isDark = prefs.getBool('isDark') ?? false;
     setState(() {
       _brightness = isDark ? Brightness.dark : Brightness.light;
     });
@@ -249,7 +249,7 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
         brightness: _brightness,
         scaffoldBackgroundColor: _brightness == Brightness.dark 
             ? CupertinoColors.black 
-            : CupertinoColors.systemGroupedBackground,
+            : CupertinoColors.white,
       ),
       home: widget.initialWidget,
       debugShowCheckedModeBanner: false,

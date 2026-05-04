@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
@@ -20,11 +21,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<ScreenshotItem> _items = [];
+  int _instructionIndex = 0;
+  late final Timer _instructionTimer;
+  final List<String> _instructions = [
+    "Hi! I am Snapi",
+    "Take any screenshot!",
+    "I'll detect it!",
+    "Adding Voice Notes",
+    "Smart Organizing",
+    "Mind Map View",
+    "Try it now!",
+  ];
 
   @override
   void initState() {
     super.initState();
     _loadItems();
+    _instructionTimer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
+      if (mounted) {
+        setState(() {
+          _instructionIndex = (_instructionIndex + 1) % _instructions.length;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _instructionTimer.cancel();
+    super.dispose();
   }
 
   void _loadItems() {
@@ -156,43 +181,66 @@ class _HomeScreenState extends State<HomeScreen> {
               
               if (items.isEmpty)
                 SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(40.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(30),
-                            child: Container(
-                              width: 100,
-                              height: 100,
-                              color: CupertinoColors.activeBlue.withOpacity(0.1),
-                              child: const Icon(CupertinoIcons.photo, size: 50, color: CupertinoColors.activeBlue),
-                            ),
-                          ),
-                          const SizedBox(height: 30),
-                          const Text(
-                            'No Captures Yet',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: CupertinoColors.label,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Start monitoring or add manually to see your screenshot notes here.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: CupertinoColors.systemGrey.withOpacity(0.8),
-                            ),
-                          ),
-                          const SizedBox(height: 30),
-                          CupertinoButton.filled(
-                            child: const Text('Add First Note'),
-                            onPressed: _pickFromGallery,
+                          // Mascot with Speech Bubble
+                          Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [
+                              // Speech Bubble with Cycling Text
+                              Positioned(
+                                top: -60,
+                                right: -40,
+                                child: TweenAnimationBuilder<double>(
+                                  key: ValueKey(_instructionIndex),
+                                  tween: Tween(begin: 0.0, end: 1.0),
+                                  duration: const Duration(milliseconds: 600),
+                                  curve: Curves.easeOutBack,
+                                  builder: (context, value, child) {
+                                    return Transform.scale(
+                                      scale: value,
+                                      child: child,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: CupertinoColors.activeBlue,
+                                      borderRadius: BorderRadius.circular(18),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: CupertinoColors.activeBlue.withOpacity(0.3),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      _instructions[_instructionIndex],
+                                      style: const TextStyle(
+                                        color: CupertinoColors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              _FloatingMascot(
+                                child: Image.asset(
+                                  'assets/snapi.png',
+                                  width: 150,
+                                  height: 150,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -521,6 +569,50 @@ class AssetThumbnail extends StatelessWidget {
         if (data == null) return Container(color: CupertinoColors.systemGrey6);
         return Image.memory(data, fit: BoxFit.cover);
       },
+    );
+  }
+}
+
+class _FloatingMascot extends StatefulWidget {
+  final Widget child;
+  const _FloatingMascot({required this.child});
+
+  @override
+  State<_FloatingMascot> createState() => _FloatingMascotState();
+}
+
+class _FloatingMascotState extends State<_FloatingMascot> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _animation = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(0, 0.05),
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _animation,
+      child: widget.child,
     );
   }
 }

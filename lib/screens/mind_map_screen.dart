@@ -150,15 +150,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
               // Background Gradient
               Positioned.fill(
                 child: Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.center,
-                      radius: 1.5,
-                      colors: isDark 
-                        ? [const Color(0xFF1C1C1E), const Color(0xFF000000)]
-                        : [CupertinoColors.white, const Color(0xFFF2F2F7)],
-                    ),
-                  ),
+                  color: isDark ? const Color(0xFF000000) : CupertinoColors.white,
                 ),
               ),
               // Background Dim when menu is open
@@ -1003,26 +995,26 @@ class GridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw a radial glow centered at the hub (2500, 2500)
+    // 1. Draw an ultra-subtle radial glow centered at the hub (2500, 2500)
     final Offset hubCenter = Offset(size.width / 2, size.height / 2);
     final Paint glowPaint = Paint()
       ..shader = RadialGradient(
         center: Alignment.center,
         colors: [
-          (isDark ? CupertinoColors.activeBlue : CupertinoColors.activeBlue).withOpacity(isDark ? 0.12 : 0.15),
+          (isDark ? CupertinoColors.activeBlue : CupertinoColors.activeBlue).withOpacity(isDark ? 0.08 : 0.06),
           Colors.transparent,
         ],
-      ).createShader(Rect.fromCircle(center: hubCenter, radius: 1500));
+      ).createShader(Rect.fromCircle(center: hubCenter, radius: 1800));
     
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), glowPaint);
 
-    // 2. Draw Dot Grid
+    // 2. Draw Ultra-faint Dot Grid
     final Paint dotPaint = Paint()
-      ..color = (isDark ? CupertinoColors.white : CupertinoColors.systemGrey2).withOpacity(isDark ? 0.18 : 0.4)
+      ..color = (isDark ? CupertinoColors.white : CupertinoColors.activeBlue).withOpacity(isDark ? 0.08 : 0.04)
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = 2.0;
+      ..strokeWidth = 1.5;
 
-    const double spacing = 60.0;
+    const double spacing = 100.0; // Larger spacing for a cleaner look
 
     List<Offset> points = [];
     for (double x = 0; x <= size.width; x += spacing) {
@@ -1032,30 +1024,6 @@ class GridPainter extends CustomPainter {
     }
     
     canvas.drawPoints(PointMode.points, points, dotPaint);
-    
-    // 3. Draw secondary smaller dots
-    final Paint subDotPaint = Paint()
-      ..color = dotPaint.color.withOpacity(dotPaint.color.opacity * 0.4)
-      ..strokeWidth = 1.0;
-    
-    const double subSpacing = spacing / 2;
-    List<Offset> subPoints = [];
-    for (double x = subSpacing; x <= size.width; x += spacing) {
-      for (double y = subSpacing; y <= size.height; y += spacing) {
-        subPoints.add(Offset(x, y));
-      }
-    }
-    for (double x = 0; x <= size.width; x += spacing) {
-      for (double y = subSpacing; y <= size.height; y += spacing) {
-        subPoints.add(Offset(x, y));
-      }
-    }
-    for (double x = subSpacing; x <= size.width; x += spacing) {
-      for (double y = 0; y <= size.height; y += spacing) {
-        subPoints.add(Offset(x, y));
-      }
-    }
-    canvas.drawPoints(PointMode.points, subPoints, subDotPaint);
   }
 
   @override
