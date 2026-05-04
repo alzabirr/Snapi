@@ -38,7 +38,7 @@ class BackgroundService {
         autoStart: true,
         isForegroundMode: true,
         notificationChannelId: 'snapshot_memo_background',
-        initialNotificationTitle: 'Essential Space',
+        initialNotificationTitle: 'Snapi',
         initialNotificationContent: 'Monitoring for screenshots...',
         foregroundServiceNotificationId: 888,
       ),

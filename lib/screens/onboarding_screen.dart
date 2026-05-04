@@ -149,7 +149,7 @@ else {
               
               // Title
               Text(
-                'Essential Space',
+                'Snapi',
                 style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle.copyWith(
                   fontSize: 34,
                   fontWeight: FontWeight.w800,

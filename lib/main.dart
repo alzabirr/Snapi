@@ -55,22 +55,22 @@ void main() async {
     debugPrint('Startup preferences check failed: $e');
   }
   
-  runApp(EssentialSpaceApp(initialWidget: initialWidget));
+  runApp(SnapiApp(initialWidget: initialWidget));
 }
 
-class EssentialSpaceApp extends StatefulWidget {
+class SnapiApp extends StatefulWidget {
   final Widget initialWidget;
 
-  const EssentialSpaceApp({super.key, required this.initialWidget});
+  const SnapiApp({super.key, required this.initialWidget});
 
-  static _EssentialSpaceAppState of(BuildContext context) => 
-      context.findAncestorStateOfType<_EssentialSpaceAppState>()!;
+  static _SnapiAppState of(BuildContext context) => 
+      context.findAncestorStateOfType<_SnapiAppState>()!;
 
   @override
-  State<EssentialSpaceApp> createState() => _EssentialSpaceAppState();
+  State<SnapiApp> createState() => _SnapiAppState();
 }
 
-class _EssentialSpaceAppState extends State<EssentialSpaceApp> with WidgetsBindingObserver {
+class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
   Brightness _brightness = Brightness.dark;
   StreamSubscription? _screenshotSubscription;
   StreamSubscription? _notificationSubscription;
@@ -243,7 +243,7 @@ class _EssentialSpaceAppState extends State<EssentialSpaceApp> with WidgetsBindi
   Widget build(BuildContext context) {
     return CupertinoApp(
       navigatorKey: navigatorKey,
-      title: 'Essential Space',
+      title: 'Snapi',
       theme: CupertinoThemeData(
         primaryColor: CupertinoColors.activeBlue,
         brightness: _brightness,
