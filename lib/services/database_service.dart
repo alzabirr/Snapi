@@ -38,7 +38,6 @@ class DatabaseService {
 
   // Moves to Recycle Bin instead of permanent deletion
   static Future<void> deleteItem(ScreenshotItem item) async {
-    // Clone the item to avoid Hive Object state issues
     final clone = ScreenshotItem(
       id: item.id,
       path: item.path,
@@ -47,6 +46,7 @@ class DatabaseService {
       createdAt: item.createdAt,
       isFavorite: item.isFavorite,
       category: item.category,
+      extractedText: item.extractedText,
     );
     await deletedBox.put(clone.id, clone);
     await item.delete();
@@ -62,6 +62,7 @@ class DatabaseService {
       createdAt: item.createdAt,
       isFavorite: item.isFavorite,
       category: item.category,
+      extractedText: item.extractedText,
     );
     await box.put(clone.id, clone);
     await item.delete();
@@ -82,5 +83,28 @@ class DatabaseService {
 
   static Future<void> emptyRecycleBin() async {
     await deletedBox.clear();
+  }
+
+  static Future<void> deleteCategory(String categoryName) async {
+    final itemsToDelete = box.values.where((item) => 
+      item.category == categoryName || (categoryName == 'General' && item.category.isEmpty)
+    ).toList();
+    for (var item in itemsToDelete) {
+      await deleteItem(item);
+    }
+  }
+
+  static Future<void> renameCategory(String oldName, String newName) async {
+    final Map<dynamic, ScreenshotItem> updates = {};
+    final itemsToUpdate = box.values.where((item) => item.category == oldName).toList();
+    
+    for (var item in itemsToUpdate) {
+      item.category = newName;
+      updates[item.id] = item;
+    }
+    
+    if (updates.isNotEmpty) {
+      await box.putAll(updates);
+    }
   }
 }

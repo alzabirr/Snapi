@@ -62,6 +62,24 @@ class BackgroundService {
   @pragma('vm:entry-point')
   static void onStart(ServiceInstance service) async {
     DartPluginRegistrant.ensureInitialized();
+    
+    bool showNotifications = true;
+    
+    // Listen for config updates from the main app
+    service.on('updateConfig').listen((event) {
+      if (event != null && event['showNotifications'] != null) {
+        showNotifications = event['showNotifications'];
+        debugPrint('Background Service: Notifications updated to $showNotifications');
+      }
+    });
+
+    // Initial load of settings
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      showNotifications = prefs.getBool('show_screenshot_notifications') ?? true;
+    } catch (e) {
+      debugPrint('Background Service: Failed to load initial settings: $e');
+    }
 
     // Re-initialize notifications in this isolate
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -75,14 +93,14 @@ class BackgroundService {
         }
       }
 
-      await _checkForNewScreenshot(flutterLocalNotificationsPlugin);
+      await _checkForNewScreenshot(flutterLocalNotificationsPlugin, showNotifications);
     });
   }
 
   static String? _lastSeenAssetId;
 
   static Future<void> _checkForNewScreenshot(
-      FlutterLocalNotificationsPlugin notifications) async {
+      FlutterLocalNotificationsPlugin notifications, bool showNotifications) async {
     // Note: PhotoManager needs permission check again in this isolate context
     // or rely on the main app having asked for it. 
     // In background, we assume permissions are already granted.
@@ -125,7 +143,7 @@ class BackgroundService {
         _lastSeenAssetId = latest.id;
         await prefs.setString('last_known_screenshot_id', latest.id);
 
-        if (isVeryRecent && _isScreenshot(latest)) {
+        if (isVeryRecent && _isScreenshot(latest) && showNotifications) {
            // Before showing notification, check if it's already in the database (via SharedPreferences or just let UI handle it)
            // Actually, the background service isolate doesn't share the same Hive box easily if not initialized.
            // But since we want to avoid the notification if the user is ALREADY in the UI, 

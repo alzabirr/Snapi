@@ -30,11 +30,7 @@ void main() async {
     debugPrint('NotificationService init failed: $e');
   }
   
-  try {
-    await SpeechService.init();
-  } catch (e) {
-    debugPrint('SpeechService init failed: $e');
-  }
+  // SpeechService.init() moved to after onboarding check or permission slide
 
   try {
     await BackgroundService.initialize();
@@ -50,6 +46,12 @@ void main() async {
     
     if (seenOnboarding) {
       initialWidget = const MainScreen();
+      // Initialize speech service if already onboarded
+      try {
+        await SpeechService.init();
+      } catch (e) {
+        debugPrint('SpeechService init failed: $e');
+      }
     }
   } catch (e) {
     debugPrint('Startup preferences check failed: $e');

@@ -120,7 +120,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     final hasItems = _groupedItems.values.any((list) => list.isNotEmpty);
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : CupertinoColors.white,
+      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
       navigationBar: CupertinoNavigationBar(
         middle: Text(
           'Mind Map',
@@ -130,7 +130,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
             letterSpacing: -0.5,
           ),
         ),
-        backgroundColor: (isDark ? const Color(0xFF000000) : CupertinoColors.white).withOpacity(0.8),
+        backgroundColor: (isDark ? CupertinoColors.black : CupertinoColors.white).withOpacity(0.8),
         border: null,
       ),
       child: LayoutBuilder(
@@ -150,7 +150,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
               // Background Gradient
               Positioned.fill(
                 child: Container(
-                  color: isDark ? const Color(0xFF000000) : CupertinoColors.white,
+                  color: isDark ? CupertinoColors.black : CupertinoColors.white,
                 ),
               ),
               // Background Dim when menu is open
@@ -176,13 +176,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
                     child: Stack(
                       children: [
                         // Background Grid (Inside InteractiveViewer for perfect sync)
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: GridPainter(
-                              isDark: isDark,
-                            ),
-                          ),
-                        ),
+                        // Grid removed for solid black background
                         Positioned.fill(
                           child: CustomPaint(
                             painter: MindMapPainter(

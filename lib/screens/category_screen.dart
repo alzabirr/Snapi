@@ -44,17 +44,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   Future<void> _loadCategories() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList('user_categories');
-    if (saved != null && mounted) {
+    List<String>? saved = prefs.getStringList('user_categories');
+    
+    if (mounted) {
       setState(() {
-        _allCategories = saved;
+        if (saved == null || saved.isEmpty) {
+          _allCategories = ['General', 'Work', 'Personal', 'Social', 'School'];
+        } else {
+          // Always ensure General is present
+          if (!saved.contains('General')) {
+            saved.insert(0, 'General');
+          }
+          _allCategories = saved;
+        }
       });
+      _loadItems();
     }
   }
 
   Future<void> _saveCategories() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('user_categories', _allCategories);
+    // Notify other screens to refresh
+    DatabaseService.categoryNotifier.value++;
   }
 
   void _loadItems() {
@@ -67,12 +79,24 @@ class _CategoryScreenState extends State<CategoryScreen> {
       grouped[cat] = [];
     }
 
+    bool categoriesUpdated = false;
     for (var item in allItems) {
       final cat = item.category.isEmpty ? 'General' : item.category;
+      
+      // If a restored image has a category that was deleted, bring the folder back
+      if (!_allCategories.contains(cat)) {
+        _allCategories.add(cat);
+        categoriesUpdated = true;
+      }
+      
       if (!grouped.containsKey(cat)) {
         grouped[cat] = [];
       }
       grouped[cat]!.add(item);
+    }
+    
+    if (categoriesUpdated) {
+      _saveCategories();
     }
     
     setState(() {
@@ -118,6 +142,147 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
+  void _showFolderOptions(String category) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text('Folder: $category'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _renameFolder(category);
+            },
+            child: const Text('Rename Folder'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              _confirmDeleteFolder(category);
+            },
+            child: const Text('Delete Folder'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  void _renameFolder(String oldName) {
+    if (oldName == 'General') {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Cannot Rename'),
+          content: const Text('The General folder is a system folder and cannot be renamed.'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('OK'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final TextEditingController controller = TextEditingController(text: oldName);
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Rename Folder'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            controller: controller,
+            placeholder: 'New Folder Name',
+            autofocus: true,
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty && newName != oldName) {
+                // 1. Check if new name already exists (Merge case)
+                bool merging = _allCategories.contains(newName);
+                
+                // 2. Update category list in MEMORY first
+                setState(() {
+                  if (merging) {
+                    _allCategories.remove(oldName);
+                  } else {
+                    final index = _allCategories.indexOf(oldName);
+                    if (index != -1) {
+                      _allCategories[index] = newName;
+                    }
+                  }
+                });
+                
+                // 3. Save categories to PREFERENCES immediately
+                // This ensures that any background refresh sees the correct list
+                await _saveCategories();
+                
+                // 4. Update items in DB (Atomic update)
+                // This triggers listeners, but now they will see the updated categories
+                await DatabaseService.renameCategory(oldName, newName);
+                
+                if (mounted) {
+                  Navigator.pop(context);
+                  _loadItems(); 
+                }
+              } else {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteFolder(String category) {
+    if (category == 'General') return;
+
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Folder?'),
+        content: Text('All captures in "$category" will be moved to the Recycle Bin.'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              await DatabaseService.deleteCategory(category);
+              setState(() {
+                _allCategories.remove(category);
+                _groupedItems.remove(category);
+              });
+              await _saveCategories();
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
@@ -145,6 +310,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ),
             backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
             border: null,
+            trailing: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _addNewFolder,
+              child: const Icon(CupertinoIcons.folder_badge_plus, size: 28, color: CupertinoColors.activeBlue),
+            ),
           ),
           SliverPadding(
             padding: const EdgeInsets.all(16),
@@ -165,6 +335,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     items: items,
                     isDark: isDark,
                     color: color,
+                    onLongPress: () => _showFolderOptions(category),
                   );
                 },
                 childCount: _allCategories.length,
@@ -182,12 +353,14 @@ class _FolderCard extends StatelessWidget {
   final List<ScreenshotItem> items;
   final bool isDark;
   final Color color;
+  final VoidCallback onLongPress;
 
   const _FolderCard({
     required this.category,
     required this.items,
     required this.isDark,
     required this.color,
+    required this.onLongPress,
   });
 
   @override
@@ -196,6 +369,7 @@ class _FolderCard extends StatelessWidget {
     final stackItems = items.take(3).toList();
     
     return GestureDetector(
+      onLongPress: onLongPress,
       onTap: () => Navigator.push(
         context,
         CupertinoPageRoute(

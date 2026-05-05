@@ -299,16 +299,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(28),
-                                  boxShadow: CupertinoTheme.of(context).brightness == Brightness.dark 
-                                    ? [] 
-                                    : [
-                                        BoxShadow(
-                                          color: CupertinoColors.systemFill.resolveFrom(context),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 10),
-                                        ),
-                                      ],
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: CupertinoColors.systemGrey.resolveFrom(context).withOpacity(0.15),
+                                    width: 0.5,
+                                  ),
                                 ),
                                 clipBehavior: Clip.antiAlias,
                                 child: Stack(
@@ -327,39 +322,39 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                     ),
+                                    // Gradient overlay to protect the text
                                     Positioned.fill(
                                       child: Container(
                                         decoration: BoxDecoration(
                                           gradient: LinearGradient(
                                             begin: Alignment.topCenter,
                                             end: Alignment.bottomCenter,
-                                            stops: const [0.0, 0.4, 0.7, 1.0],
+                                            stops: const [0.6, 1.0],
                                             colors: [
-                                              CupertinoColors.black.withOpacity(0.2),
                                               CupertinoColors.transparent,
-                                              CupertinoColors.black.withOpacity(0.3),
-                                              CupertinoColors.black.withOpacity(0.7),
+                                              CupertinoColors.black.withOpacity(0.4),
                                             ],
                                           ),
                                         ),
                                       ),
                                     ),
+                                    // Premium Glassmorphism Info Bar
                                     Positioned(
                                       left: 0,
                                       right: 0,
                                       bottom: 0,
                                       child: ClipRRect(
                                         child: BackdropFilter(
-                                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                                           child: Container(
-                                            padding: const EdgeInsets.all(14.0),
+                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                             decoration: BoxDecoration(
                                               color: CupertinoTheme.of(context).brightness == Brightness.dark 
-                                                  ? const Color(0xFF1A1A1A).withOpacity(0.7)
-                                                  : CupertinoColors.white.withOpacity(0.85),
+                                                  ? const Color(0xFF1A1A1A).withOpacity(0.75)
+                                                  : CupertinoColors.white.withOpacity(0.88),
                                               border: Border(
                                                 top: BorderSide(
-                                                  color: CupertinoColors.label.resolveFrom(context).withOpacity(0.12),
+                                                  color: CupertinoColors.label.resolveFrom(context).withOpacity(0.08),
                                                   width: 0.5,
                                                 ),
                                               ),
@@ -373,45 +368,50 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                   style: TextStyle(
-                                                    fontSize: 15,
+                                                    fontSize: 14,
                                                     color: CupertinoColors.label.resolveFrom(context),
                                                     fontWeight: FontWeight.w700,
-                                                    letterSpacing: 0.2,
+                                                    letterSpacing: -0.2,
                                                   ),
                                                 ),
-                                                const SizedBox(height: 4),
+                                                const SizedBox(height: 3),
                                                 Row(
                                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                   children: [
-                                                    Text(
-                                                      '${item.createdAt.day} ${_getMonthName(item.createdAt.month)}',
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: CupertinoColors.systemGrey.withOpacity(0.8),
-                                                        fontWeight: FontWeight.w600,
-                                                      ),
+                                                    Row(
+                                                      children: [
+                                                        Text(
+                                                          '${item.createdAt.day} ${_getMonthName(item.createdAt.month)}',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            color: CupertinoColors.systemGrey.withOpacity(0.9),
+                                                            fontWeight: FontWeight.w600,
+                                                            letterSpacing: -0.1,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: CupertinoColors.activeBlue.withOpacity(0.1),
+                                                            borderRadius: BorderRadius.circular(5),
+                                                          ),
+                                                          child: Text(
+                                                            item.category.toUpperCase(),
+                                                            style: const TextStyle(
+                                                              fontSize: 8,
+                                                              fontWeight: FontWeight.w800,
+                                                              color: CupertinoColors.activeBlue,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
                                                     if (item.reminderTime != null)
-                                                      Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                        decoration: BoxDecoration(
-                                                          color: CupertinoColors.activeBlue.withOpacity(0.15),
-                                                          borderRadius: BorderRadius.circular(6),
-                                                        ),
-                                                        child: Row(
-                                                          children: [
-                                                            const Icon(CupertinoIcons.bell_fill, size: 10, color: CupertinoColors.activeBlue),
-                                                            const SizedBox(width: 3),
-                                                            Text(
-                                                              item.reminderTime!.toString().substring(11, 16),
-                                                              style: const TextStyle(
-                                                                fontSize: 10,
-                                                                color: CupertinoColors.activeBlue,
-                                                                fontWeight: FontWeight.w800,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
+                                                      Icon(
+                                                        CupertinoIcons.bell_fill, 
+                                                        size: 11, 
+                                                        color: CupertinoColors.activeBlue.withOpacity(0.8)
                                                       ),
                                                   ],
                                                 ),

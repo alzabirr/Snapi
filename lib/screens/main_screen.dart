@@ -30,6 +30,7 @@ class _MainScreenState extends State<MainScreen> {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
       child: Stack(
         children: [
@@ -41,10 +42,10 @@ class _MainScreenState extends State<MainScreen> {
           
           // Custom Floating Navigation Bar (Matching Image)
           Positioned(
-            bottom: 24,
-            left: 16,
-            right: 16,
-            child: Row(
+              bottom: 24,
+              left: 16,
+              right: 16,
+              child: Row(
               children: [
                 // Main Capsule for Nav Items
                 Expanded(
@@ -66,7 +67,7 @@ class _MainScreenState extends State<MainScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildNavItem(0, CupertinoIcons.house),
+                            _buildNavItem(0, CupertinoIcons.photo_on_rectangle),
                             _buildNavItem(1, CupertinoIcons.folder),
                             _buildNavItem(2, CupertinoIcons.graph_circle),
                             _buildNavItem(3, CupertinoIcons.settings),

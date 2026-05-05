@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/database_service.dart';
 
 class CategoryManagerScreen extends StatefulWidget {
   const CategoryManagerScreen({super.key});
@@ -30,6 +31,8 @@ class _CategoryManagerScreenState extends State<CategoryManagerScreen> {
   Future<void> _saveCategories() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('user_categories', _categories);
+    // Notify other screens to refresh
+    DatabaseService.categoryNotifier.value++;
   }
 
   void _addCategory() {

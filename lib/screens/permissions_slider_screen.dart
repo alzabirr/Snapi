@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/speech_service.dart';
+import 'package:flutter/foundation.dart'; // for debugPrint
 
 class PermissionsSliderScreen extends StatefulWidget {
   const PermissionsSliderScreen({super.key});
@@ -34,11 +36,20 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> {
       'action': (BuildContext context) async => await PhotoManager.requestPermissionExtend(),
     },
     {
-      'title': 'Microphone',
-      'subtitle': 'Enable your microphone to add voice memos and notes to your screenshots effortlessly.',
+      'title': 'Audio Recording',
+      'subtitle': 'Allow Snapi to record audio so you can add voice memos and notes to your screenshots.',
       'icon': CupertinoIcons.mic_fill,
       'color': CupertinoColors.systemPink,
-      'action': (BuildContext context) async => await Permission.microphone.request(),
+      'action': (BuildContext context) async {
+        final status = await Permission.microphone.request();
+        if (status.isGranted) {
+          try {
+            await SpeechService.init();
+          } catch (e) {
+            debugPrint('SpeechService init failed: $e');
+          }
+        }
+      },
     },
     {
       'title': 'Notifications',

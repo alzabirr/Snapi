@@ -1,6 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart' show Colors;
+import 'package:permission_handler/permission_handler.dart';
 import '../main.dart';
 import '../services/database_service.dart';
 import '../services/screenshot_service.dart';
@@ -18,16 +22,47 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   int _totalCaptures = 0;
   int _deletedCaptures = 0;
+  bool _showScreenshotNotifications = true;
+  PermissionStatus _micStatus = PermissionStatus.denied;
+  PermissionStatus _notificationStatus = PermissionStatus.denied;
 
   @override
   void initState() {
     super.initState();
     _loadStats();
   }
-  void _loadStats() {
+  void _loadStats() async {
+    final prefs = await SharedPreferences.getInstance();
+    final mic = await Permission.microphone.status;
+    final notif = await Permission.notification.status;
+    
     setState(() {
       _totalCaptures = DatabaseService.getAllItems().length;
       _deletedCaptures = DatabaseService.getDeletedItems().length;
+      _showScreenshotNotifications = prefs.getBool('show_screenshot_notifications') ?? true;
+      _micStatus = mic;
+      _notificationStatus = notif;
+    });
+  }
+
+  String _getStatusText(PermissionStatus status) {
+    if (status.isGranted) return 'Allowed';
+    if (status.isPermanentlyDenied) return 'Denied';
+    if (status.isLimited) return 'Limited';
+    return 'Not Set';
+  }
+
+  Future<void> _toggleScreenshotNotifications(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_screenshot_notifications', value);
+    
+    // Notify the background service immediately
+    FlutterBackgroundService().invoke('updateConfig', {
+      'showNotifications': value,
+    });
+
+    setState(() {
+      _showScreenshotNotifications = value;
     });
   }
 
@@ -169,17 +204,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             CupertinoListSection.insetGrouped(
               backgroundColor: CupertinoColors.transparent,
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              header: const Text('App Permissions'),
+              children: [
+                CupertinoListTile(
+                  title: const Text('Screenshot Detect Alert'),
+                  leading: _buildIOSIcon(CupertinoIcons.eye_fill, CupertinoColors.systemTeal),
+                  trailing: CupertinoSwitch(
+                    value: _showScreenshotNotifications,
+                    onChanged: _toggleScreenshotNotifications,
+                  ),
+                ),
+              ],
+            ),
+
+            CupertinoListSection.insetGrouped(
+              backgroundColor: CupertinoColors.transparent,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
               children: [
                 CupertinoListTile(
                   title: const Text('Privacy Policy'),
                   leading: _buildIOSIcon(CupertinoIcons.shield_fill, CupertinoColors.systemGreen),
                   trailing: const CupertinoListTileChevron(),
                   onTap: () => _showPrivacyPolicy(context),
-                ),
-                CupertinoListTile(
-                  title: const Text('About'),
-                  leading: _buildIOSIcon(CupertinoIcons.info, CupertinoColors.systemGrey),
-                  trailing: const Text('v1.0.0', style: TextStyle(color: CupertinoColors.systemGrey)),
                 ),
               ],
             ),

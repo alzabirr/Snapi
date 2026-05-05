@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 
@@ -17,6 +18,13 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
   void initState() {
     super.initState();
     _loadItems();
+    DatabaseService.deletedBox.listenable().addListener(_loadItems);
+  }
+
+  @override
+  void dispose() {
+    DatabaseService.deletedBox.listenable().removeListener(_loadItems);
+    super.dispose();
   }
 
   void _loadItems() {
@@ -107,35 +115,58 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
                   style: TextStyle(color: CupertinoColors.systemGrey),
                 ),
               )
-            : ListView.builder(
+            : GridView.builder(
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 0.8,
+                ),
                 itemCount: _deletedItems.length,
                 itemBuilder: (context, index) {
                   final item = _deletedItems[index];
-                  return CupertinoListTile(
-                    leadingSize: 60,
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(item.path),
-                        fit: BoxFit.cover,
-                        width: 60,
-                        height: 60,
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: CupertinoColors.systemGrey.resolveFrom(context).withOpacity(0.2),
+                        width: 0.5,
                       ),
                     ),
-                    title: Text(item.note.isNotEmpty ? item.note : 'Untitled Note'),
-                    subtitle: Text('Deleted: ${item.createdAt.day}/${item.createdAt.month}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          child: const Icon(CupertinoIcons.arrow_counterclockwise, color: CupertinoColors.activeBlue),
-                          onPressed: () => _restoreItem(item),
+                        Image.file(
+                          File(item.path),
+                          fit: BoxFit.cover,
                         ),
-                        CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          child: const Icon(CupertinoIcons.trash_fill, color: CupertinoColors.destructiveRed),
-                          onPressed: () => _permanentlyDeleteItem(item),
+                        // Action Buttons Overlay
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            color: CupertinoColors.black.withOpacity(0.6),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                CupertinoButton(
+                                  padding: EdgeInsets.zero,
+                                  minSize: 36,
+                                  child: const Icon(CupertinoIcons.arrow_counterclockwise, color: CupertinoColors.white, size: 18),
+                                  onPressed: () => _restoreItem(item),
+                                ),
+                                CupertinoButton(
+                                  padding: EdgeInsets.zero,
+                                  minSize: 36,
+                                  child: const Icon(CupertinoIcons.trash, color: CupertinoColors.systemRed, size: 18),
+                                  onPressed: () => _permanentlyDeleteItem(item),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
