@@ -84,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
       barrierDismissible: false,
       builder: (context) => ScreenshotPopup(
         asset: asset,
-        onSave: (note, category, reminder, extractedText) async {
+        onSave: (note, category, extractedText) async {
           final file = await asset.file;
           if (file == null) return;
 
@@ -93,22 +93,11 @@ class _HomeScreenState extends State<HomeScreen> {
             path: file.path,
             note: note,
             category: category,
-            reminderTime: reminder,
             createdAt: DateTime.now(),
             extractedText: extractedText,
           );
           await DatabaseService.addItem(newItem);
           _loadItems();
-
-          if (reminder != null) {
-            NotificationService.scheduleReminder(
-              id: asset.id.hashCode,
-              title: 'Screenshot Reminder',
-              body: note.isNotEmpty ? note : 'View your screenshot note',
-              scheduledDate: reminder,
-              payload: asset.id,
-            );
-          }
         },
         onDelete: () {
           // User discarded the manual gallery pick
@@ -407,14 +396,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         ),
                                                       ],
                                                     ),
-                                                    if (item.reminderTime != null)
-                                                      Icon(
-                                                        CupertinoIcons.bell_fill, 
-                                                        size: 11, 
-                                                        color: CupertinoColors.activeBlue.withOpacity(0.8)
-                                                      ),
-                                                  ],
-                                                ),
+                                                    ],
+                                                  ),
                                               ],
                                             ),
                                           ),

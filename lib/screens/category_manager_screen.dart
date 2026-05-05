@@ -21,7 +21,7 @@ class _CategoryManagerScreenState extends State<CategoryManagerScreen> {
 
   Future<void> _loadCategories() async {
     final prefs = await SharedPreferences.getInstance();
-    final cats = prefs.getStringList('user_categories') ?? ['General', 'Work', 'Personal', 'Social', 'School'];
+    final cats = prefs.getStringList('user_categories') ?? ['General', 'Work', 'Personal', 'Social'];
     setState(() {
       _categories = cats;
       _isLoading = false;

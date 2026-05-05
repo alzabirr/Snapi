@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../models/screenshot_item.dart';
@@ -37,48 +39,34 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
   Future<void> _initTts() async {
     try {
       await _flutterTts.awaitSpeakCompletion(true);
-      
       if (Platform.isAndroid) {
         await Future.delayed(const Duration(milliseconds: 500));
       }
-      
       List<dynamic> languages = await _flutterTts.getLanguages;
       String targetLang = "en-US";
-
-      // Normalize languages to find a match (handle en_US vs en-US)
       bool hasEnUs = languages.any((l) => l.toString().replaceAll('_', '-') == 'en-US');
-      
       if (!hasEnUs) {
-         // Try to find any English
          var anyEnglish = languages.firstWhere(
            (l) => l.toString().startsWith('en'), 
            orElse: () => languages.isNotEmpty ? languages.first : "en-US"
          );
          targetLang = anyEnglish.toString();
       }
-
-      debugPrint('TTS: Setting language to $targetLang');
       await _flutterTts.setLanguage(targetLang);
       await _flutterTts.setSpeechRate(0.5);
       await _flutterTts.setVolume(1.0);
       await _flutterTts.setPitch(1.0);
-      
-      // More robust handlers
-
       _flutterTts.setStartHandler(() {
-        debugPrint('TTS: Started speaking');
         if (mounted) setState(() => _isSpeaking = true);
       });
       _flutterTts.setCompletionHandler(() {
-        debugPrint('TTS: Completed speaking');
         if (mounted) setState(() => _isSpeaking = false);
       });
       _flutterTts.setErrorHandler((msg) {
-        debugPrint('TTS: Error - $msg');
         if (mounted) setState(() => _isSpeaking = false);
       });
     } catch (e) {
-      debugPrint('TTS: Init Error - $e');
+      debugPrint('TTS Error: $e');
     }
   }
 
@@ -98,20 +86,15 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
   }
 
   Future<void> _speakNote() async {
-    debugPrint('TTS: Button clicked. Current state: speaking=$_isSpeaking');
     if (_isSpeaking) {
       await _flutterTts.stop();
       if (mounted) setState(() => _isSpeaking = false);
     } else {
       if (_currentItem.note.isNotEmpty) {
-        debugPrint('TTS: Speaking - ${_currentItem.note}');
         if (Platform.isAndroid) {
           await Future.delayed(const Duration(milliseconds: 200));
         }
-        var result = await _flutterTts.speak(_currentItem.note);
-        debugPrint('TTS: Speak result code: $result');
-      } else {
-        debugPrint('TTS: Note is empty');
+        await _flutterTts.speak(_currentItem.note);
       }
     }
   }
@@ -125,8 +108,14 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
       await textRecognizer.close();
 
       if (recognizedText.text.isNotEmpty) {
+        // Join everything into one single continuous paragraph
+        String allText = recognizedText.text
+            .replaceAll('\n', ' ')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+            
         setState(() {
-          _currentItem.extractedText = recognizedText.text.replaceAll('\n', ' ').trim();
+          _currentItem.extractedText = allText;
         });
         await DatabaseService.addItem(_currentItem);
       } else {
@@ -135,12 +124,9 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
             context: context,
             builder: (context) => CupertinoAlertDialog(
               title: const Text('No Text Found'),
-              content: const Text('Could not find any readable text in this screenshot.'),
+              content: const Text('Could not find any readable text.'),
               actions: [
-                CupertinoDialogAction(
-                  child: const Text('OK'),
-                  onPressed: () => Navigator.pop(context),
-                ),
+                CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context)),
               ],
             ),
           );
@@ -160,32 +146,16 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
       builder: (context) => ScreenshotPopup(
         initialNote: _currentItem.note,
         initialCategory: _currentItem.category,
-        initialReminder: _currentItem.reminderTime,
         imagePath: _currentItem.path,
-        onSave: (note, category, reminder, extractedText) async {
+        onSave: (note, category, extractedText) async {
           setState(() {
             _currentItem.note = note;
             _currentItem.category = category;
-            _currentItem.reminderTime = reminder;
-            // Only update extracted text if it was empty before
             if (_currentItem.extractedText.isEmpty) {
               _currentItem.extractedText = extractedText;
             }
           });
           await DatabaseService.addItem(_currentItem);
-          
-          if (reminder != null) {
-            // Ensure permission is granted before scheduling
-            await NotificationService.requestPermission();
-            
-            NotificationService.scheduleReminder(
-              id: _currentItem.id.hashCode,
-              title: 'Screenshot Reminder',
-              body: note.isNotEmpty ? note : 'View your screenshot note',
-              scheduledDate: reminder,
-              payload: _currentItem.id,
-            );
-          }
         },
       ),
     );
@@ -202,23 +172,38 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
         title: const Text('Delete Capture'),
         content: const Text('Are you sure you want to delete this capture?'),
         actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
+          CupertinoDialogAction(child: const Text('Cancel'), onPressed: () => Navigator.pop(context)),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () async {
               await DatabaseService.deleteItem(_currentItem);
               if (mounted) {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context, true); // Return to home
+                Navigator.pop(context);
+                Navigator.pop(context, true);
               }
             },
             child: const Text('Delete'),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildActionChips(String text) {
+    final List<Widget> chips = [];
+    final urlRegex = RegExp(r'https?:\/\/[^\s]+');
+    final urls = urlRegex.allMatches(text).map((m) => m.group(0)!).toSet();
+    for (var url in urls) chips.add(_ActionChip(icon: CupertinoIcons.link, label: 'Open Link', value: url));
+
+    final emailRegex = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
+    final emails = emailRegex.allMatches(text).map((m) => m.group(0)!).toSet();
+    for (var email in emails) chips.add(_ActionChip(icon: CupertinoIcons.mail, label: 'Email', value: 'mailto:$email'));
+
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
     );
   }
 
@@ -241,28 +226,11 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                       child: Container(
                         width: double.infinity,
                         height: MediaQuery.of(context).size.height * 0.55,
-                        decoration: BoxDecoration(
-                          boxShadow: isDark ? [] : [
-                            BoxShadow(
-                              color: CupertinoColors.activeBlue.withOpacity(0.1),
-                              blurRadius: 40,
-                              offset: const Offset(0, 10),
-                            ),
-                            BoxShadow(
-                              color: CupertinoColors.black.withOpacity(0.1),
-                              blurRadius: 30,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
                         child: ClipRRect(
                           child: InteractiveViewer(
                             minScale: 1.0,
                             maxScale: 4.0,
-                            child: Image.file(
-                              File(_currentItem.path),
-                              fit: BoxFit.contain,
-                            ),
+                            child: Image.file(File(_currentItem.path), fit: BoxFit.contain),
                           ),
                         ),
                       ),
@@ -281,17 +249,8 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                             ],
                           ),
                           borderRadius: BorderRadius.circular(32),
-                          border: Border.all(
-                            color: CupertinoColors.label.resolveFrom(context).withOpacity(0.15),
-                            width: 0.8,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: CupertinoColors.black.withOpacity(0.6),
-                              blurRadius: 35,
-                              offset: const Offset(0, 15),
-                            ),
-                          ],
+                          border: Border.all(color: CupertinoColors.label.resolveFrom(context).withOpacity(0.15), width: 0.8),
+                          boxShadow: [BoxShadow(color: CupertinoColors.black.withOpacity(0.6), blurRadius: 35, offset: const Offset(0, 15))],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,142 +262,68 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: CupertinoColors.activeBlue.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        'DESCRIPTION',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w900,
-                                          color: CupertinoColors.activeBlue,
-                                          letterSpacing: 2.0,
-                                        ),
-                                      ),
+                                      decoration: BoxDecoration(color: CupertinoColors.activeBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                                      child: const Text('DESCRIPTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: CupertinoColors.activeBlue, letterSpacing: 2.0)),
                                     ),
                                     const SizedBox(width: 12),
                                     if (_currentItem.note.isNotEmpty)
                                       CupertinoButton(
                                         padding: EdgeInsets.zero,
                                         onPressed: _speakNote,
-                                        child: Icon(
-                                          _isSpeaking ? CupertinoIcons.stop_circle_fill : CupertinoIcons.play_circle_fill,
-                                          color: CupertinoColors.activeBlue,
-                                          size: 28,
-                                        ),
+                                        child: Icon(_isSpeaking ? CupertinoIcons.stop_circle_fill : CupertinoIcons.play_circle_fill, color: CupertinoColors.activeBlue, size: 28),
                                       ),
                                   ],
                                 ),
-                                if (_currentItem.reminderTime != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: CupertinoColors.label.resolveFrom(context).withOpacity(0.1), width: 0.5),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(CupertinoIcons.bell_fill, size: 13, color: CupertinoColors.activeBlue),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _currentItem.reminderTime.toString().substring(11, 16),
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: CupertinoColors.label.resolveFrom(context),
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                               ],
                             ),
                             const SizedBox(height: 20),
                             Text(
-                              _currentItem.note.isNotEmpty ? _currentItem.note : 'No description provided for this capture.',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: CupertinoColors.label.resolveFrom(context),
-                                height: 1.6,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.2,
-                              ),
+                              _currentItem.note.isNotEmpty ? _currentItem.note : 'No description provided.',
+                              style: TextStyle(fontSize: 18, color: CupertinoColors.label.resolveFrom(context), height: 1.6, fontWeight: FontWeight.w500, letterSpacing: 0.2),
                             ),
-                            
                             if (_currentItem.extractedText.isNotEmpty) ...[
                               const SizedBox(height: 32),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: CupertinoColors.systemOrange.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'AI RECOGNIZED TEXT',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    color: CupertinoColors.systemOrange,
-                                    letterSpacing: 1.5,
-                                  ),
+                                decoration: BoxDecoration(color: CupertinoColors.systemPurple.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(CupertinoIcons.sparkles, size: 12, color: CupertinoColors.systemPurple),
+                                    SizedBox(width: 6),
+                                    Text('AI RECOGNIZED TEXT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: CupertinoColors.systemPurple, letterSpacing: 1.5)),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 12),
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: isDark 
-                                      ? CupertinoColors.white.withOpacity(0.03) 
-                                      : CupertinoColors.black.withOpacity(0.03),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: CupertinoColors.label.resolveFrom(context).withOpacity(0.05),
-                                  ),
+                                  color: isDark ? CupertinoColors.white.withOpacity(0.04) : CupertinoColors.black.withOpacity(0.03),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: CupertinoColors.systemPurple.withOpacity(0.15), width: 1),
                                 ),
-                                child: Text(
-                                  _currentItem.extractedText,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: CupertinoColors.label.resolveFrom(context).withOpacity(0.7),
-                                    height: 1.5,
-                                    fontStyle: FontStyle.italic,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _currentItem.extractedText,
+                                      style: TextStyle(fontSize: 14, color: CupertinoColors.label.resolveFrom(context).withOpacity(0.85), height: 1.6, fontWeight: FontWeight.w400, letterSpacing: 0.2),
+                                    ),
+                                    _buildActionChips(_currentItem.extractedText),
+                                  ],
                                 ),
                               ),
                             ],
-                            
                             const SizedBox(height: 48),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                _ActionButton(
-                                  icon: CupertinoIcons.pencil_circle_fill,
-                                  label: 'Edit',
-                                  onPressed: _editItem,
-                                  color: CupertinoColors.label.resolveFrom(context),
-                                ),
-                                _ActionButton(
-                                  icon: CupertinoIcons.sparkles,
-                                  label: _isExtractingText ? 'Reading...' : 'Magic Read',
-                                  onPressed: _isExtractingText ? () {} : _extractText,
-                                  color: CupertinoColors.systemOrange,
-                                  isLoading: _isExtractingText,
-                                ),
-                                _ActionButton(
-                                  icon: CupertinoIcons.arrowshape_turn_up_right_circle_fill,
-                                  label: 'Share',
-                                  onPressed: _shareItem,
-                                  color: CupertinoColors.activeBlue,
-                                ),
-                                _ActionButton(
-                                  icon: CupertinoIcons.trash_circle_fill,
-                                  label: 'Delete',
-                                  onPressed: _deleteItem,
-                                  color: CupertinoColors.destructiveRed,
-                                ),
+                                _ActionButton(icon: CupertinoIcons.pencil_circle_fill, label: 'Edit', onPressed: _editItem, color: CupertinoColors.label.resolveFrom(context)),
+                                _ActionButton(icon: CupertinoIcons.sparkles, label: _isExtractingText ? 'Reading...' : 'Magic Read', onPressed: _isExtractingText ? () {} : _extractText, color: CupertinoColors.systemPurple, isLoading: _isExtractingText),
+                                _ActionButton(icon: CupertinoIcons.arrowshape_turn_up_right_circle_fill, label: 'Share', onPressed: _shareItem, color: CupertinoColors.activeBlue),
+                                _ActionButton(icon: CupertinoIcons.trash_circle_fill, label: 'Delete', onPressed: _deleteItem, color: CupertinoColors.destructiveRed),
                               ],
                             ),
                           ],
@@ -451,12 +336,8 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
               ),
             ],
           ),
-
-          // Custom Header
           Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
+            top: 0, left: 0, right: 0,
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10 * _headerOpacity, sigmaY: 10 * _headerOpacity),
@@ -475,44 +356,24 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                             onPressed: () => Navigator.pop(context),
                             child: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.black.withOpacity(0.3),
-                                shape: BoxShape.circle,
-                              ),
+                              decoration: BoxDecoration(color: CupertinoColors.black.withOpacity(0.3), shape: BoxShape.circle),
                               child: const Icon(CupertinoIcons.back, color: CupertinoColors.white, size: 22),
                             ),
                           ),
                           Opacity(
                             opacity: _headerOpacity,
-                            child: Text(
-                              'Capture Details',
-                              style: TextStyle(
-                                color: CupertinoColors.label.resolveFrom(context),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
+                            child: Text('Details', style: TextStyle(color: CupertinoColors.label.resolveFrom(context), fontWeight: FontWeight.w700, fontSize: 18, letterSpacing: -0.5)),
                           ),
                           CupertinoButton(
                             padding: EdgeInsets.zero,
                             onPressed: () async {
-                              setState(() {
-                                _currentItem.isFavorite = !_currentItem.isFavorite;
-                              });
+                              setState(() => _currentItem.isFavorite = !_currentItem.isFavorite);
                               await DatabaseService.addItem(_currentItem);
                             },
                             child: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.black.withOpacity(0.3),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _currentItem.isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                                color: _currentItem.isFavorite ? CupertinoColors.systemRed : CupertinoColors.white,
-                                size: 22,
-                              ),
+                              decoration: BoxDecoration(color: CupertinoColors.black.withOpacity(0.3), shape: BoxShape.circle),
+                              child: Icon(_currentItem.isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart, color: _currentItem.isFavorite ? CupertinoColors.systemRed : CupertinoColors.white, size: 22),
                             ),
                           ),
                         ],
@@ -536,13 +397,7 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final bool isLoading;
 
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    required this.color,
-    this.isLoading = false,
-  });
+  const _ActionButton({required this.icon, required this.label, required this.onPressed, required this.color, this.isLoading = false});
 
   @override
   Widget build(BuildContext context) {
@@ -554,38 +409,51 @@ class _ActionButton extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  color.withOpacity(0.2),
-                  color.withOpacity(0.05),
-                ],
-              ),
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withOpacity(0.2), color.withOpacity(0.05)]),
               shape: BoxShape.circle,
-              border: Border.all(
-                color: color.withOpacity(0.2),
-                width: 1,
-              ),
+              border: Border.all(color: color.withOpacity(0.2), width: 1),
             ),
             child: isLoading 
-              ? const SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CupertinoActivityIndicator(radius: 10),
-                )
+              ? const SizedBox(width: 28, height: 28, child: CupertinoActivityIndicator(radius: 10))
               : Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: color.withOpacity(0.9),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 13, color: color.withOpacity(0.9), fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _ActionChip({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final uri = Uri.parse(value);
+        if (await canLaunchUrl(uri)) await launchUrl(uri);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: CupertinoColors.systemPurple.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: CupertinoColors.systemPurple.withOpacity(0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: CupertinoColors.systemPurple),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.systemPurple)),
+          ],
+        ),
       ),
     );
   }

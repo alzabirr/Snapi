@@ -176,7 +176,7 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
           alignment: Alignment.bottomCenter,
           child: ScreenshotPopup(
             asset: asset,
-            onSave: (note, category, reminder, extractedText) async {
+            onSave: (note, category, extractedText) async {
               _pendingPopups.remove(asset.id);
               final file = await asset.file;
               if (file == null) {
@@ -189,21 +189,10 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
                 path: file.path,
                 note: note,
                 category: category,
-                reminderTime: reminder,
                 createdAt: DateTime.now(),
                 extractedText: extractedText,
               );
               await DatabaseService.addItem(newItem);
-
-              if (reminder != null) {
-                NotificationService.scheduleReminder(
-                  id: asset.id.hashCode,
-                  title: 'Screenshot Reminder',
-                  body: note.isNotEmpty ? note : 'View your screenshot note',
-                  scheduledDate: reminder,
-                  payload: asset.id,
-                );
-              }
             },
             onDelete: () {
               _pendingPopups.remove(asset.id);

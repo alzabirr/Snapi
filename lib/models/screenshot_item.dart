@@ -13,9 +13,6 @@ class ScreenshotItem extends HiveObject {
   @HiveField(2)
   String note;
 
-  @HiveField(3)
-  DateTime? reminderTime;
-
   @HiveField(4)
   final DateTime createdAt;
 
@@ -32,7 +29,6 @@ class ScreenshotItem extends HiveObject {
     required this.id,
     required this.path,
     this.note = '',
-    this.reminderTime,
     required this.createdAt,
     this.isFavorite = false,
     this.category = 'Uncategorized',

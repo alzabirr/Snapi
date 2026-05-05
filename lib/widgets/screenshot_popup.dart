@@ -12,8 +12,7 @@ class ScreenshotPopup extends StatefulWidget {
   final String? imagePath;
   final String? initialNote;
   final String? initialCategory;
-  final DateTime? initialReminder;
-  final Function(String note, String category, DateTime? reminder, String extractedText) onSave;
+  final Function(String note, String category, String extractedText) onSave;
   final VoidCallback? onDelete;
 
   const ScreenshotPopup({
@@ -22,7 +21,6 @@ class ScreenshotPopup extends StatefulWidget {
     this.imagePath,
     this.initialNote,
     this.initialCategory,
-    this.initialReminder,
     required this.onSave,
     this.onDelete,
   });
@@ -33,9 +31,8 @@ class ScreenshotPopup extends StatefulWidget {
 
 class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProviderStateMixin {
   late final TextEditingController _noteController;
-  DateTime? _selectedReminder;
   String _selectedCategory = 'General';
-  List<String> _categories = ['General', 'Work', 'Personal', 'Social', 'School'];
+  List<String> _categories = ['General', 'Work', 'Personal', 'Social'];
   bool _isListening = false;
   File? _imageFile;
   late AnimationController _pulseController;
@@ -47,7 +44,6 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
   void initState() {
     super.initState();
     _noteController = TextEditingController(text: widget.initialNote);
-    _selectedReminder = widget.initialReminder;
     _selectedCategory = widget.initialCategory ?? 'General';
     _loadCategories();
     _loadImage();
@@ -84,7 +80,6 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
 
     if (mounted) {
       setState(() {});
-      _runOCR();
     }
   }
 
@@ -92,7 +87,13 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     if (_imageFile == null) return;
     
     setState(() => _isOcrRunning = true);
-    final text = await OCRService.extractText(_imageFile!.path);
+    String text = await OCRService.extractText(_imageFile!.path);
+    
+    // Format the text: Clean extra spaces, fix line breaks
+    text = text.replaceAll('\n\n', '\n')
+               .replaceAll('  ', ' ')
+               .trim();
+               
     if (mounted) {
       setState(() {
         _extractedText = text;
@@ -215,12 +216,10 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
           top: 12,
         ),
         decoration: BoxDecoration(
-          color: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.95),
+          color: CupertinoTheme.of(context).barBackgroundColor,
         ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: SafeArea(
-            top: false,
+        child: SafeArea(
+          top: false,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -384,63 +383,6 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                                   ),
                                 ),
                               ),
-                              CupertinoButton(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                onPressed: () {
-                                  showCupertinoModalPopup(
-                                    context: context,
-                                    builder: (context) => ClipRRect(
-                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                                      child: BackdropFilter(
-                                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                                        child: Container(
-                                          height: 320,
-                                          color: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.95),
-                                          child: Column(
-                                            children: [
-                                              Padding(
-                                                padding: const EdgeInsets.all(20.0),
-                                                child: Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                  children: [
-                                                    const Text(
-                                                      'REMINDER',
-                                                      style: TextStyle(
-                                                        color: CupertinoColors.systemGrey,
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.w900,
-                                                        letterSpacing: 2.0,
-                                                      ),
-                                                    ),
-                                                    CupertinoButton(
-                                                      padding: EdgeInsets.zero,
-                                                      child: const Text('DONE', style: TextStyle(fontWeight: FontWeight.bold)),
-                                                      onPressed: () => Navigator.pop(context),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: CupertinoDatePicker(
-                                                  mode: CupertinoDatePickerMode.dateAndTime,
-                                                  onDateTimeChanged: (date) {
-                                                    setState(() => _selectedReminder = date);
-                                                  },
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Icon(
-                                  _selectedReminder == null ? CupertinoIcons.bell : CupertinoIcons.bell_fill,
-                                  color: _selectedReminder == null ? CupertinoColors.systemGrey : CupertinoColors.activeBlue,
-                                  size: 19,
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -484,7 +426,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                             color: CupertinoColors.activeBlue,
                             borderRadius: BorderRadius.circular(20),
                             onPressed: () {
-                              widget.onSave(_noteController.text, _selectedCategory, _selectedReminder, _extractedText);
+                              widget.onSave(_noteController.text, _selectedCategory, _extractedText);
                               Navigator.pop(context);
                             },
                             child: Center(
@@ -521,7 +463,6 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 }

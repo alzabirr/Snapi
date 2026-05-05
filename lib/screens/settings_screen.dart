@@ -70,8 +70,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
 
-    // Reload stats when building in case we return from Recycle Bin
-    _loadStats();
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
@@ -367,17 +365,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         width: double.infinity,
                         height: 56,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [CupertinoColors.activeBlue, Color(0xFF5AC8FA)],
-                          ),
+                          color: CupertinoColors.activeBlue,
                           borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: CupertinoColors.activeBlue.withOpacity(0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
                         ),
                         child: const Center(
                           child: Text(

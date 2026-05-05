@@ -16,7 +16,7 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   Map<String, List<ScreenshotItem>> _groupedItems = {};
-  List<String> _allCategories = ['General', 'Work', 'Personal', 'Social', 'School'];
+  List<String> _allCategories = ['General', 'Work', 'Personal', 'Social'];
 
   @override
   void initState() {
@@ -49,7 +49,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (mounted) {
       setState(() {
         if (saved == null || saved.isEmpty) {
-          _allCategories = ['General', 'Work', 'Personal', 'Social', 'School'];
+          _allCategories = ['General', 'Work', 'Personal', 'Social'];
         } else {
           // Always ensure General is present
           if (!saved.contains('General')) {
@@ -708,30 +708,8 @@ class CategoryDetailScreen extends StatelessWidget {
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                          if (item.reminderTime != null)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: CupertinoColors.activeBlue.withOpacity(0.15),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  const Icon(CupertinoIcons.bell_fill, size: 10, color: CupertinoColors.activeBlue),
-                                                  const SizedBox(width: 3),
-                                                  Text(
-                                                    item.reminderTime!.toString().substring(11, 16),
-                                                    style: const TextStyle(
-                                                      fontSize: 10,
-                                                      color: CupertinoColors.activeBlue,
-                                                      fontWeight: FontWeight.w800,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                        ],
-                                      ),
+                                          ],
+                                        ),
                                     ],
                                   ),
                                 ),

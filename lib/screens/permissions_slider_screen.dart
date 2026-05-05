@@ -53,7 +53,7 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> {
     },
     {
       'title': 'Notifications',
-      'subtitle': 'Stay updated! Snapi will alert you when new screenshots are detected or reminders are due.',
+      'subtitle': 'Stay updated! Snapi will alert you when new screenshots are detected.',
       'icon': CupertinoIcons.bell_fill,
       'color': CupertinoColors.systemYellow,
       'action': (BuildContext context) async => await Permission.notification.request(),

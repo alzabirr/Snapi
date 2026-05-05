@@ -20,10 +20,10 @@ class ScreenshotItemAdapter extends TypeAdapter<ScreenshotItem> {
       id: fields[0] as String,
       path: fields[1] as String,
       note: fields[2] as String,
-      reminderTime: fields[3] as DateTime?,
       createdAt: fields[4] as DateTime,
       isFavorite: fields[5] == null ? false : fields[5] as bool,
       category: fields[6] == null ? 'Uncategorized' : fields[6] as String,
+      extractedText: fields[7] == null ? '' : fields[7] as String,
     );
   }
 
@@ -37,14 +37,14 @@ class ScreenshotItemAdapter extends TypeAdapter<ScreenshotItem> {
       ..write(obj.path)
       ..writeByte(2)
       ..write(obj.note)
-      ..writeByte(3)
-      ..write(obj.reminderTime)
       ..writeByte(4)
       ..write(obj.createdAt)
       ..writeByte(5)
       ..write(obj.isFavorite)
       ..writeByte(6)
-      ..write(obj.category);
+      ..write(obj.category)
+      ..writeByte(7)
+      ..write(obj.extractedText);
   }
 
   @override

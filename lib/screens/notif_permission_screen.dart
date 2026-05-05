@@ -40,7 +40,7 @@ class NotifPermissionScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 40),
               child: Text(
-                'Stay updated! Snapi will alert you when new screenshots are detected or when reminders are due.',
+                'Stay updated! Snapi will alert you when new screenshots are detected.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 17,
