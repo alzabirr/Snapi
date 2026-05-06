@@ -5,11 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/screenshot_popup.dart';
+import '../services/ocr_service.dart';
 
 class CaptureDetailsScreen extends StatefulWidget {
   final ScreenshotItem item;
@@ -100,22 +100,28 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
   }
 
   Future<void> _extractText() async {
+    // Toggle OFF: If text is already extracted, clicking again clears it
+    if (_currentItem.extractedText.isNotEmpty) {
+      setState(() {
+        _currentItem.extractedText = '';
+      });
+      await DatabaseService.addItem(_currentItem);
+      return;
+    }
+
+    // Toggle ON: Run OCR
     setState(() => _isExtractingText = true);
     try {
-      final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-      final inputImage = InputImage.fromFilePath(_currentItem.path);
-      final recognizedText = await textRecognizer.processImage(inputImage);
-      await textRecognizer.close();
+      String text = await OCRService.extractText(_currentItem.path);
+      
+      if (text.isNotEmpty) {
+        // Format the text: Clean extra spaces, fix line breaks
+        String formattedText = text.replaceAll('\n\n', '\n')
+                   .replaceAll('  ', ' ')
+                   .trim();
 
-      if (recognizedText.text.isNotEmpty) {
-        // Join everything into one single continuous paragraph
-        String allText = recognizedText.text
-            .replaceAll('\n', ' ')
-            .replaceAll(RegExp(r'\s+'), ' ')
-            .trim();
-            
         setState(() {
-          _currentItem.extractedText = allText;
+          _currentItem.extractedText = formattedText;
         });
         await DatabaseService.addItem(_currentItem);
       } else {
@@ -124,7 +130,7 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
             context: context,
             builder: (context) => CupertinoAlertDialog(
               title: const Text('No Text Found'),
-              content: const Text('Could not find any readable text.'),
+              content: const Text('Could not find any readable text in this image.'),
               actions: [
                 CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context)),
               ],
@@ -321,7 +327,13 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
                                 _ActionButton(icon: CupertinoIcons.pencil_circle_fill, label: 'Edit', onPressed: _editItem, color: CupertinoColors.label.resolveFrom(context)),
-                                _ActionButton(icon: CupertinoIcons.sparkles, label: _isExtractingText ? 'Reading...' : 'Magic Read', onPressed: _isExtractingText ? () {} : _extractText, color: CupertinoColors.systemPurple, isLoading: _isExtractingText),
+                                _ActionButton(
+                                  icon: _currentItem.extractedText.isNotEmpty ? CupertinoIcons.xmark_circle_fill : CupertinoIcons.sparkles, 
+                                  label: _isExtractingText ? 'Reading...' : (_currentItem.extractedText.isNotEmpty ? 'Clear Text' : 'Magic Read'), 
+                                  onPressed: _isExtractingText ? () {} : _extractText, 
+                                  color: _currentItem.extractedText.isNotEmpty ? CupertinoColors.systemGrey : CupertinoColors.systemPurple, 
+                                  isLoading: _isExtractingText
+                                ),
                                 _ActionButton(icon: CupertinoIcons.arrowshape_turn_up_right_circle_fill, label: 'Share', onPressed: _shareItem, color: CupertinoColors.activeBlue),
                                 _ActionButton(icon: CupertinoIcons.trash_circle_fill, label: 'Delete', onPressed: _deleteItem, color: CupertinoColors.destructiveRed),
                               ],
@@ -429,11 +441,13 @@ class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final Color? color;
 
-  const _ActionChip({required this.icon, required this.label, required this.value});
+  const _ActionChip({required this.icon, required this.label, required this.value, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final chipColor = color ?? CupertinoColors.systemPurple;
     return GestureDetector(
       onTap: () async {
         final uri = Uri.parse(value);
@@ -442,16 +456,16 @@ class _ActionChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: CupertinoColors.systemPurple.withOpacity(0.1),
+          color: chipColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: CupertinoColors.systemPurple.withOpacity(0.2)),
+          border: Border.all(color: chipColor.withOpacity(0.2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: CupertinoColors.systemPurple),
+            Icon(icon, size: 14, color: chipColor),
             const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.systemPurple)),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: chipColor)),
           ],
         ),
       ),

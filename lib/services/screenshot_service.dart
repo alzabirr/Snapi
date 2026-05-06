@@ -20,9 +20,14 @@ class ScreenshotService {
     // Initial check to set baseline
     await _checkForNewScreenshot(isInitial: true);
 
-    // Use PhotoManager change notification instead of Timer for better battery life
+    // Use PhotoManager change notification
     PhotoManager.addChangeCallback(_onGalleryChanged);
     PhotoManager.startChangeNotify();
+
+    // Fallback periodic check while app is active for ultra-fast detection
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      _checkForNewScreenshot();
+    });
   }
 
   static void _onGalleryChanged(MethodCall call) {
@@ -34,6 +39,7 @@ class ScreenshotService {
     try {
       final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
         type: RequestType.image,
+        onlyAll: true, // Much faster - only looks at the "Recent" album
         filterOption: FilterOptionGroup(
           imageOption: const FilterOption(
             sizeConstraint: SizeConstraint(ignoreSize: true),

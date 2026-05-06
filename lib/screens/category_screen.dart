@@ -16,7 +16,7 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   Map<String, List<ScreenshotItem>> _groupedItems = {};
-  List<String> _allCategories = ['General', 'Work', 'Personal', 'Social'];
+  List<String> _allCategories = ['Uncategorized', 'Work', 'Personal', 'Social'];
 
   @override
   void initState() {
@@ -49,11 +49,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (mounted) {
       setState(() {
         if (saved == null || saved.isEmpty) {
-          _allCategories = ['General', 'Work', 'Personal', 'Social'];
+          _allCategories = ['Uncategorized', 'Work', 'Personal', 'Social'];
         } else {
-          // Always ensure General is present
-          if (!saved.contains('General')) {
-            saved.insert(0, 'General');
+          // Always ensure Uncategorized is present
+          if (!saved.contains('Uncategorized')) {
+            saved.insert(0, 'Uncategorized');
           }
           _allCategories = saved;
         }
@@ -81,7 +81,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     bool categoriesUpdated = false;
     for (var item in allItems) {
-      final cat = item.category.isEmpty ? 'General' : item.category;
+      final cat = item.category.isEmpty ? 'Uncategorized' : item.category;
       
       // If a restored image has a category that was deleted, bring the folder back
       if (!_allCategories.contains(cat)) {
@@ -174,12 +174,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   void _renameFolder(String oldName) {
-    if (oldName == 'General') {
+    if (oldName == 'Uncategorized') {
       showCupertinoDialog(
         context: context,
         builder: (context) => CupertinoAlertDialog(
           title: const Text('Cannot Rename'),
-          content: const Text('The General folder is a system folder and cannot be renamed.'),
+          content: const Text('The Uncategorized folder is a system folder and cannot be renamed.'),
           actions: [
             CupertinoDialogAction(
               child: const Text('OK'),
@@ -253,7 +253,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   void _confirmDeleteFolder(String category) {
-    if (category == 'General') return;
+    if (category == 'Uncategorized') return;
 
     showCupertinoDialog(
       context: context,

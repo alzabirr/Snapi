@@ -159,22 +159,7 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
       child: Stack(
         children: [
           // Background Glows for Premium Look
-          if (isDark)
-            Positioned(
-              top: -150,
-              right: -100,
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                child: Container(
-                  width: 300,
-                  height: 300,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: CupertinoColors.activeBlue.withOpacity(0.12),
-                  ),
-                ),
-              ),
-            ),
+          // Background Glows removed for pure dark feel as requested
 
           CustomScrollView(
             physics: const BouncingScrollPhysics(),
@@ -197,10 +182,10 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: CupertinoColors.activeBlue.withOpacity(0.12),
+                          color: isDark ? CupertinoColors.systemGrey.withOpacity(0.1) : CupertinoColors.activeBlue.withOpacity(0.12),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(CupertinoIcons.chevron_down, size: 12, color: CupertinoColors.activeBlue),
+                        child: Icon(CupertinoIcons.chevron_down, size: 12, color: isDark ? CupertinoColors.systemGrey : CupertinoColors.activeBlue),
                       ),
                     ],
                   ),
@@ -496,10 +481,10 @@ class _AlbumPicker extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: CupertinoColors.activeBlue.withOpacity(0.1),
+                        color: isDark ? CupertinoColors.systemGrey.withOpacity(0.1) : CupertinoColors.activeBlue.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(CupertinoIcons.xmark, size: 18, color: CupertinoColors.activeBlue),
+                      child: Icon(CupertinoIcons.xmark, size: 18, color: isDark ? CupertinoColors.systemGrey : CupertinoColors.activeBlue),
                     ),
                   ),
                 ],
@@ -579,13 +564,13 @@ class _AlbumPicker extends StatelessWidget {
                                       return Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: CupertinoColors.activeBlue.withOpacity(0.1),
+                                          color: isDark ? CupertinoColors.systemGrey.withOpacity(0.15) : CupertinoColors.activeBlue.withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
                                           '${snapshot.data ?? '0'}',
-                                          style: const TextStyle(
-                                            color: CupertinoColors.activeBlue,
+                                          style: TextStyle(
+                                            color: isDark ? CupertinoColors.systemGrey : CupertinoColors.activeBlue,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w700,
                                           ),

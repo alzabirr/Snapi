@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/speech_service.dart';
-import '../services/ocr_service.dart';
 import '../services/database_service.dart';
 
 class ScreenshotPopup extends StatefulWidget {
@@ -31,20 +30,19 @@ class ScreenshotPopup extends StatefulWidget {
 
 class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProviderStateMixin {
   late final TextEditingController _noteController;
-  String _selectedCategory = 'General';
-  List<String> _categories = ['General', 'Work', 'Personal', 'Social'];
+  String _selectedCategory = 'Uncategorized';
+  List<String> _categories = ['Uncategorized', 'Work', 'Personal', 'Social'];
   bool _isListening = false;
   File? _imageFile;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   String _extractedText = '';
-  bool _isOcrRunning = false;
 
   @override
   void initState() {
     super.initState();
     _noteController = TextEditingController(text: widget.initialNote);
-    _selectedCategory = widget.initialCategory ?? 'General';
+    _selectedCategory = widget.initialCategory ?? 'Uncategorized';
     _loadCategories();
     _loadImage();
 
@@ -80,25 +78,6 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
 
     if (mounted) {
       setState(() {});
-    }
-  }
-
-  Future<void> _runOCR() async {
-    if (_imageFile == null) return;
-    
-    setState(() => _isOcrRunning = true);
-    String text = await OCRService.extractText(_imageFile!.path);
-    
-    // Format the text: Clean extra spaces, fix line breaks
-    text = text.replaceAll('\n\n', '\n')
-               .replaceAll('  ', ' ')
-               .trim();
-               
-    if (mounted) {
-      setState(() {
-        _extractedText = text;
-        _isOcrRunning = false;
-      });
     }
   }
 
@@ -295,13 +274,24 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                                     ),
                                   ),
                                   child: Center(
-                                    child: Text(
-                                      cat,
-                                      style: TextStyle(
-                                        color: isSelected ? CupertinoColors.white : CupertinoColors.label.resolveFrom(context).withOpacity(0.7),
-                                        fontSize: 13,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                      ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.folder_fill,
+                                          size: 14,
+                                          color: isSelected ? CupertinoColors.white : CupertinoColors.activeBlue.withOpacity(0.7),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          cat,
+                                          style: TextStyle(
+                                            color: isSelected ? CupertinoColors.white : CupertinoColors.label.resolveFrom(context).withOpacity(0.7),
+                                            fontSize: 13,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),

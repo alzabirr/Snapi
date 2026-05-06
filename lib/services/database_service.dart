@@ -85,11 +85,21 @@ class DatabaseService {
 
   static Future<void> deleteCategory(String categoryName) async {
     final itemsToDelete = box.values.where((item) => 
-      item.category == categoryName || (categoryName == 'General' && item.category.isEmpty)
+      item.category == categoryName || (categoryName == 'Uncategorized' && item.category.isEmpty)
     ).toList();
     for (var item in itemsToDelete) {
       await deleteItem(item);
     }
+  }
+
+  static List<String> getCategories() {
+    final categories = box.values.map((item) => item.category).toSet().toList();
+    categories.removeWhere((c) => c.isEmpty || c == 'General');
+    if (!categories.contains('Uncategorized')) categories.add('Uncategorized');
+    if (!categories.contains('Work')) categories.add('Work');
+    if (!categories.contains('Personal')) categories.add('Personal');
+    if (!categories.contains('Social')) categories.add('Social');
+    return categories;
   }
 
   static Future<void> renameCategory(String oldName, String newName) async {

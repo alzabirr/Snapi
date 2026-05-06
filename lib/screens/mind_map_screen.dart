@@ -86,13 +86,13 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
       var cats = prefs.getStringList('user_categories');
       
       if (cats == null || cats.isEmpty) {
-        cats = ['General', 'Work', 'Personal', 'Social', 'School'];
+        cats = ['Uncategorized', 'Work', 'Personal', 'Social', 'School'];
       }
       
       final allItems = DatabaseService.getAllItems();
       final Map<String, List<ScreenshotItem>> grouped = {};
       for (var cat in cats) {
-        grouped[cat] = allItems.where((item) => item.category == cat || (cat == 'General' && item.category.isEmpty)).toList();
+        grouped[cat] = allItems.where((item) => item.category == cat || (cat == 'Uncategorized' && item.category.isEmpty)).toList();
       }
 
       if (mounted) {

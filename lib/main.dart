@@ -125,9 +125,15 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
     // Listen for notification taps
     _notificationSubscription = NotificationService.notificationStream.listen((assetId) async {
       debugPrint('DEBUG: Notification tapped for assetId: $assetId');
-      final asset = await AssetEntity.fromId(assetId);
-      if (asset != null) {
-        _showNotePopup(asset);
+      try {
+        final asset = await AssetEntity.fromId(assetId);
+        if (asset != null) {
+          _showNotePopup(asset);
+        } else {
+          debugPrint('DEBUG: Asset not found for id: $assetId');
+        }
+      } catch (e) {
+        debugPrint('DEBUG: Error loading asset from notification: $e');
       }
     });
 

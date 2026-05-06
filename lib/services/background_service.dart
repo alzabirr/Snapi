@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
+import 'database_service.dart';
 
 @pragma('vm:entry-point')
 class BackgroundService {
@@ -63,6 +64,15 @@ class BackgroundService {
   static void onStart(ServiceInstance service) async {
     DartPluginRegistrant.ensureInitialized();
     
+    // Initialize DB in this isolate
+    try {
+      await DatabaseService.init();
+      // Ignore permission check in background isolate for PhotoManager
+      PhotoManager.setIgnorePermissionCheck(true);
+    } catch (e) {
+      debugPrint('Background Service: DB Init failed: $e');
+    }
+    
     bool showNotifications = true;
     
     // Listen for config updates from the main app
@@ -85,8 +95,8 @@ class BackgroundService {
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
 
-    // Periodic check logic
-    Timer.periodic(const Duration(seconds: 5), (timer) async {
+    // Periodic check logic (Ultra-fast detection interval)
+    Timer.periodic(const Duration(milliseconds: 1500), (timer) async {
       if (service is AndroidServiceInstance) {
         if (!await service.isForegroundService()) {
            // If we're not in foreground but service running, we should still check
@@ -109,6 +119,7 @@ class BackgroundService {
     try {
       final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
         type: RequestType.image,
+        onlyAll: true, // Optimized for speed
         filterOption: FilterOptionGroup(
            imageOption: const FilterOption(
              sizeConstraint: SizeConstraint(ignoreSize: true),
@@ -144,13 +155,15 @@ class BackgroundService {
         await prefs.setString('last_known_screenshot_id', latest.id);
 
         if (isVeryRecent && _isScreenshot(latest) && showNotifications) {
-           // Before showing notification, check if it's already in the database (via SharedPreferences or just let UI handle it)
-           // Actually, the background service isolate doesn't share the same Hive box easily if not initialized.
-           // But since we want to avoid the notification if the user is ALREADY in the UI, 
-           // we can use a simpler heuristic or just rely on the UI check we just added.
+           // Before showing notification, check if it's already in the database
+           final items = DatabaseService.getAllItems();
+           final alreadyInDb = items.any((item) => item.id == latest.id);
            
-           // However, to be extra safe, let's only show if not already seen in THIS session.
-           
+           if (alreadyInDb) {
+             debugPrint('Background Service: Screenshot ${latest.id} already in DB. Skipping notification.');
+             return;
+           }
+
            await notifications.show(
             latest.id.hashCode,
             'New Screenshot Captured',

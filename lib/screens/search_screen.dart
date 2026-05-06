@@ -179,13 +179,20 @@ class _SearchScreenState extends State<SearchScreen> {
                                                 color: CupertinoColors.activeBlue.withOpacity(0.1),
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
-                                              child: Text(
-                                                item.category.isEmpty ? 'General' : item.category,
-                                                style: const TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: CupertinoColors.activeBlue,
-                                                ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(CupertinoIcons.folder_fill, size: 10, color: CupertinoColors.activeBlue),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    item.category.isEmpty ? 'Uncategorized' : item.category,
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: CupertinoColors.activeBlue,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                             const SizedBox(width: 8),

@@ -20,7 +20,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<ScreenshotItem> _items = [];
   int _instructionIndex = 0;
   late final Timer _instructionTimer;
   final List<String> _instructions = [
@@ -36,7 +35,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadItems();
     _instructionTimer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
       if (mounted) {
         setState(() {
@@ -50,12 +48,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _instructionTimer.cancel();
     super.dispose();
-  }
-
-  void _loadItems() {
-    setState(() {
-      _items = DatabaseService.getAllItems();
-    });
   }
 
   Future<void> _pickFromGallery() async {
@@ -97,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
             extractedText: extractedText,
           );
           await DatabaseService.addItem(newItem);
-          _loadItems();
         },
         onDelete: () {
           // User discarded the manual gallery pick
@@ -279,6 +270,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             final item = groupItems[index];
                             return GestureDetector(
                               onTap: () async {
+                                // Prevent double-push Hero crash
+                                if (!mounted) return;
+                                
                                 await Navigator.push(
                                   context,
                                   CupertinoPageRoute(
