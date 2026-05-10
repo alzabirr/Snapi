@@ -116,9 +116,12 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
       
       if (text.isNotEmpty) {
         // Format the text: Clean extra spaces, fix line breaks
-        String formattedText = text.replaceAll('\n\n', '\n')
-                   .replaceAll('  ', ' ')
-                   .trim();
+        // Intelligent paragraph formatting
+        String formattedText = text
+            .replaceAll(RegExp(r'(?<!\n)\n(?!\n)'), ' ') // Replace single newlines with space
+            .replaceAll(RegExp(r'\n{2,}'), '\n\n') // Normalize multiple newlines
+            .replaceAll(RegExp(r' {2,}'), ' ') // Clean extra spaces
+            .trim();
 
         setState(() {
           _currentItem.extractedText = formattedText;
@@ -168,7 +171,59 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
   }
 
   void _shareItem() {
-    Share.shareXFiles([XFile(_currentItem.path)], text: _currentItem.note);
+    final hasNote = _currentItem.note.isNotEmpty;
+    final hasText = _currentItem.extractedText.isNotEmpty;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Share Capture'),
+        message: const Text('How would you like to share this?'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              String shareText = _currentItem.note;
+              if (hasText) {
+                if (shareText.isNotEmpty) shareText += '\n\n--- Extracted Text ---\n';
+                shareText += _currentItem.extractedText;
+              }
+              Share.shareXFiles(
+                [XFile(_currentItem.path)],
+                text: shareText,
+                subject: hasNote ? _currentItem.note : 'Shared Screenshot',
+              );
+            },
+            child: const Text('Share All (Image + Text)'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              Share.shareXFiles([XFile(_currentItem.path)]);
+            },
+            child: const Text('Share Image Only'),
+          ),
+          if (hasNote || hasText)
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(context);
+                String shareText = _currentItem.note;
+                if (hasText) {
+                  if (shareText.isNotEmpty) shareText += '\n\n';
+                  shareText += _currentItem.extractedText;
+                }
+                Share.share(shareText);
+              },
+              child: const Text('Share Text Only'),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
   }
 
   void _deleteItem() {
@@ -196,21 +251,7 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
   }
 
   Widget _buildActionChips(String text) {
-    final List<Widget> chips = [];
-    final urlRegex = RegExp(r'https?:\/\/[^\s]+');
-    final urls = urlRegex.allMatches(text).map((m) => m.group(0)!).toSet();
-    for (var url in urls) chips.add(_ActionChip(icon: CupertinoIcons.link, label: 'Open Link', value: url));
-
-    final emailRegex = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
-    final emails = emailRegex.allMatches(text).map((m) => m.group(0)!).toSet();
-    for (var email in emails) chips.add(_ActionChip(icon: CupertinoIcons.mail, label: 'Email', value: 'mailto:$email'));
-
-
-    if (chips.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
-    );
+    return const SizedBox.shrink();
   }
 
   @override
@@ -269,7 +310,7 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(color: CupertinoColors.activeBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                                      child: const Text('DESCRIPTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: CupertinoColors.activeBlue, letterSpacing: 2.0)),
+                                      child: const Text('NOTE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: CupertinoColors.activeBlue, letterSpacing: 2.0)),
                                     ),
                                     const SizedBox(width: 12),
                                     if (_currentItem.note.isNotEmpty)
@@ -279,6 +320,30 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                                         child: Icon(_isSpeaking ? CupertinoIcons.stop_circle_fill : CupertinoIcons.play_circle_fill, color: CupertinoColors.activeBlue, size: 28),
                                       ),
                                   ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? CupertinoColors.white.withOpacity(0.05) : CupertinoColors.black.withOpacity(0.04),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: CupertinoColors.label.resolveFrom(context).withOpacity(0.1), width: 0.5),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(CupertinoIcons.folder_fill, size: 14, color: CupertinoColors.systemGrey.resolveFrom(context)),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _currentItem.category.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: CupertinoColors.label.resolveFrom(context).withOpacity(0.6),
+                                          letterSpacing: 1.0,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -292,12 +357,12 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(color: CupertinoColors.systemPurple.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(CupertinoIcons.sparkles, size: 12, color: CupertinoColors.systemPurple),
+                                    Image.asset('assets/snapi.png', width: 14, height: 14),
                                     SizedBox(width: 6),
-                                    Text('AI RECOGNIZED TEXT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: CupertinoColors.systemPurple, letterSpacing: 1.5)),
+                                    Text('SNAPI VISION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: const Color(0xFFF75A4C), letterSpacing: 1.5)),
                                   ],
                                 ),
                               ),
@@ -313,8 +378,12 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      _currentItem.extractedText,
+                                    CupertinoTextField(
+                                      controller: TextEditingController(text: _currentItem.extractedText),
+                                      readOnly: true,
+                                      maxLines: null,
+                                      decoration: null,
+                                      padding: EdgeInsets.zero,
                                       style: TextStyle(fontSize: 14, color: CupertinoColors.label.resolveFrom(context).withOpacity(0.85), height: 1.6, fontWeight: FontWeight.w400, letterSpacing: 0.2),
                                     ),
                                     _buildActionChips(_currentItem.extractedText),
@@ -326,16 +395,17 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                _ActionButton(icon: CupertinoIcons.pencil_circle_fill, label: 'Edit', onPressed: _editItem, color: CupertinoColors.label.resolveFrom(context)),
+                                _ActionButton(icon: CupertinoIcons.pencil_circle_fill, label: 'Edit', onPressed: _editItem, color: CupertinoColors.activeBlue),
                                 _ActionButton(
-                                  icon: _currentItem.extractedText.isNotEmpty ? CupertinoIcons.xmark_circle_fill : CupertinoIcons.sparkles, 
-                                  label: _isExtractingText ? 'Reading...' : (_currentItem.extractedText.isNotEmpty ? 'Clear Text' : 'Magic Read'), 
+                                  customIcon: _currentItem.extractedText.isNotEmpty ? null : Image.asset('assets/snapi.png', width: 28, height: 28),
+                                  icon: _currentItem.extractedText.isNotEmpty ? CupertinoIcons.xmark_circle_fill : null, 
+                                  label: _isExtractingText ? 'Reading...' : (_currentItem.extractedText.isNotEmpty ? 'Clear Text' : 'Snapi Vision'), 
                                   onPressed: _isExtractingText ? () {} : _extractText, 
-                                  color: _currentItem.extractedText.isNotEmpty ? CupertinoColors.systemGrey : CupertinoColors.systemPurple, 
+                                  color: _currentItem.extractedText.isNotEmpty ? CupertinoColors.systemGrey : const Color(0xFFF75A4C), 
                                   isLoading: _isExtractingText
                                 ),
                                 _ActionButton(icon: CupertinoIcons.arrowshape_turn_up_right_circle_fill, label: 'Share', onPressed: _shareItem, color: CupertinoColors.activeBlue),
-                                _ActionButton(icon: CupertinoIcons.trash_circle_fill, label: 'Delete', onPressed: _deleteItem, color: CupertinoColors.destructiveRed),
+                                _ActionButton(icon: CupertinoIcons.trash_circle_fill, label: 'Delete', onPressed: _deleteItem, color: CupertinoColors.activeBlue),
                               ],
                             ),
                           ],
@@ -403,13 +473,14 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
 }
 
 class _ActionButton extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final Widget? customIcon;
   final String label;
   final VoidCallback onPressed;
   final Color color;
   final bool isLoading;
 
-  const _ActionButton({required this.icon, required this.label, required this.onPressed, required this.color, this.isLoading = false});
+  const _ActionButton({this.icon, this.customIcon, required this.label, required this.onPressed, required this.color, this.isLoading = false});
 
   @override
   Widget build(BuildContext context) {
@@ -427,7 +498,7 @@ class _ActionButton extends StatelessWidget {
             ),
             child: isLoading 
               ? const SizedBox(width: 28, height: 28, child: CupertinoActivityIndicator(radius: 10))
-              : Icon(icon, color: color, size: 28),
+              : (customIcon ?? Icon(icon, color: color, size: 28)),
           ),
           const SizedBox(height: 8),
           Text(label, style: TextStyle(fontSize: 13, color: color.withOpacity(0.9), fontWeight: FontWeight.w600)),

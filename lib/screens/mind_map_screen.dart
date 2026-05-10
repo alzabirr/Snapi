@@ -123,7 +123,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
       backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
       navigationBar: CupertinoNavigationBar(
         middle: Text(
-          'Mind Map',
+          'SNAPI HUB',
           style: TextStyle(
             color: isDark ? CupertinoColors.white : CupertinoColors.black,
             fontWeight: FontWeight.w800,
@@ -189,7 +189,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
                             ),
                           ),
                         ),
-                        _buildDraggableNode(2500, 2500, 'Captures Hub', CupertinoColors.activeBlue, 'root', isCenter: true),
+                        _buildDraggableNode(2500, 2500, 'SNAPI HUB', CupertinoColors.activeBlue, 'root', isCenter: true),
                         ..._buildCategoryBranches(),
                       ],
                     ),
@@ -346,6 +346,11 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     );
   }
 
+  String _getMonthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+  }
+
   Widget _buildSegmentLabel(String text, bool isSelected) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -362,24 +367,14 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
 
   List<String> _getDateCategories() {
     final allItems = _groupedItems.values.expand((x) => x).toList();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final thisWeek = today.subtract(Duration(days: now.weekday));
-
-    Set<String> activeDates = {};
-    for (var item in allItems) {
-      final itemDate = DateTime(item.createdAt.year, item.createdAt.month, item.createdAt.day);
-      if (itemDate == today) activeDates.add('Today');
-      else if (itemDate == yesterday) activeDates.add('Yesterday');
-      else if (itemDate.isAfter(thisWeek)) activeDates.add('This Week');
-      else if (itemDate.month == now.month && itemDate.year == now.year) activeDates.add('This Month');
-      else activeDates.add('Older');
-    }
+    allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
-    // Sort them in a logical order
-    List<String> order = ['Today', 'Yesterday', 'This Week', 'This Month', 'Older'];
-    return order.where((o) => activeDates.contains(o)).toList();
+    List<String> result = [];
+    for (var item in allItems) {
+      final dateStr = '${item.createdAt.day} ${_getMonthName(item.createdAt.month)} ${item.createdAt.year}';
+      if (!result.contains(dateStr)) result.add(dateStr);
+    }
+    return result;
   }
 
   List<Widget> _buildCategoryBranches() {
@@ -405,43 +400,23 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     }
 
     if (_viewMode == 2) {
-      // "Date" mode: Group items by Today, Yesterday, This Week, etc.
+      // "Date" mode: Group items by actual date
       List<Widget> widgets = [];
       final allItems = _groupedItems.values.expand((x) => x).toList();
       
       // Sorting all items by date
       allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      Map<String, List<ScreenshotItem>> dateGroups = {
-        'Today': [],
-        'Yesterday': [],
-        'This Week': [],
-        'This Month': [],
-        'Older': [],
-      };
-
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final yesterday = today.subtract(const Duration(days: 1));
-      final thisWeek = today.subtract(Duration(days: now.weekday));
+      Map<String, List<ScreenshotItem>> dateGroups = {};
 
       for (var item in allItems) {
-        final itemDate = DateTime(item.createdAt.year, item.createdAt.month, item.createdAt.day);
-        if (itemDate == today) {
-          dateGroups['Today']!.add(item);
-        } else if (itemDate == yesterday) {
-          dateGroups['Yesterday']!.add(item);
-        } else if (itemDate.isAfter(thisWeek)) {
-          dateGroups['This Week']!.add(item);
-        } else if (itemDate.month == now.month && itemDate.year == now.year) {
-          dateGroups['This Month']!.add(item);
-        } else {
-          dateGroups['Older']!.add(item);
+        final dateStr = '${item.createdAt.day} ${_getMonthName(item.createdAt.month)} ${item.createdAt.year}';
+        if (!dateGroups.containsKey(dateStr)) {
+          dateGroups[dateStr] = [];
         }
+        dateGroups[dateStr]!.add(item);
       }
 
-      // Remove empty groups
-      dateGroups.removeWhere((key, value) => value.isEmpty);
       final activeDates = dateGroups.keys.toList();
 
       double centerX = 2500;
@@ -772,6 +747,11 @@ class MindMapPainter extends CustomPainter {
   final int viewMode;
   final List<String> dateCategories;
 
+  String _getMonthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+  }
+
   MindMapPainter({
     required this.categories, 
     required this.groupedItems, 
@@ -838,22 +818,11 @@ class MindMapPainter extends CustomPainter {
       final allItems = groupedItems.values.expand((x) => x).toList();
       allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final yesterday = today.subtract(const Duration(days: 1));
-      final thisWeek = today.subtract(Duration(days: now.weekday));
-
       Map<String, List<ScreenshotItem>> dateGroups = {};
       for (var item in allItems) {
-        final itemDate = DateTime(item.createdAt.year, item.createdAt.month, item.createdAt.day);
-        String label = 'Older';
-        if (itemDate == today) label = 'Today';
-        else if (itemDate == yesterday) label = 'Yesterday';
-        else if (itemDate.isAfter(thisWeek)) label = 'This Week';
-        else if (itemDate.month == now.month && itemDate.year == now.year) label = 'This Month';
-        
-        if (!dateGroups.containsKey(label)) dateGroups[label] = [];
-        dateGroups[label]!.add(item);
+        final dateStr = '${item.createdAt.day} ${_getMonthName(item.createdAt.month)} ${item.createdAt.year}';
+        if (!dateGroups.containsKey(dateStr)) dateGroups[dateStr] = [];
+        dateGroups[dateStr]!.add(item);
       }
 
       for (int i = 0; i < dateCategories.length; i++) {

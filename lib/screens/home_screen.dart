@@ -28,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     "I'll detect it!",
     "Adding Voice Notes",
     "Smart Organizing",
-    "Mind Map View",
+    "SNAPI HUB View",
     "Try it now!",
   ];
 

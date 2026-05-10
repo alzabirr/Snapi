@@ -319,7 +319,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                       children: [
                         CupertinoTextField(
                           controller: _noteController,
-                          placeholder: 'Description...',
+                          placeholder: 'Add a note...',
                           placeholderStyle: TextStyle(
                             color: CupertinoColors.systemGrey.withOpacity(0.3),
                             fontSize: 16,
@@ -361,7 +361,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
-                                        _isListening ? 'STOP' : 'DICTATE',
+                                        _isListening ? 'STOP' : 'ADD VOICE',
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w800,

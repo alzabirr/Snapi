@@ -166,17 +166,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                 ),
-                CupertinoListTile(
-                  title: const Text('Manage Folders'),
-                  leading: _buildIOSIcon(CupertinoIcons.folder_fill, CupertinoColors.activeBlue),
-                  trailing: const CupertinoListTileChevron(),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(builder: (context) => const CategoryManagerScreen()),
-                    );
-                  },
-                ),
               ],
             ),
 
