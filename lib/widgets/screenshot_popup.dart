@@ -5,6 +5,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/speech_service.dart';
 import '../services/database_service.dart';
+import '../services/ai_service.dart';
 
 class ScreenshotPopup extends StatefulWidget {
   final AssetEntity? asset;
@@ -33,6 +34,8 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
   String _selectedCategory = 'Uncategorized';
   List<String> _categories = ['Uncategorized', 'Work', 'Personal', 'Social'];
   bool _isListening = false;
+  bool _isAnalyzingAI = false;
+  String? _suggestedCategory;
   File? _imageFile;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -61,6 +64,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     if (saved != null) {
       setState(() {
         _categories = saved;
+        // Only reset _selectedCategory if it's not in the new list
         if (!_categories.contains(_selectedCategory)) {
           _selectedCategory = _categories.first;
         }
@@ -78,6 +82,34 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
 
     if (mounted) {
       setState(() {});
+      // Run AI analysis only if we're not editing an existing item
+      if (widget.initialCategory == null && _imageFile != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final isAuto = prefs.getBool('auto_smart_folders') ?? true;
+        if (isAuto) {
+          _runAIAnalysis();
+        }
+      }
+    }
+  }
+
+  Future<void> _runAIAnalysis() async {
+    setState(() => _isAnalyzingAI = true);
+    try {
+      final category = await AIService.analyzeAndSuggest(_imageFile!.path);
+      if (mounted && category != 'Uncategorized') {
+        // Refresh categories list in case AIService created a new one silently
+        await _loadCategories();
+        
+        setState(() {
+          _suggestedCategory = category;
+          _selectedCategory = category; // Auto-select the suggestion
+        });
+      }
+    } catch (e) {
+      print('DEBUG: AI Analysis error: $e');
+    } finally {
+      if (mounted) setState(() => _isAnalyzingAI = false);
     }
   }
 
@@ -217,8 +249,15 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      if (_isAnalyzingAI) 
+                        const Padding(
+                          padding: EdgeInsets.only(right: 8),
+                          child: CupertinoActivityIndicator(radius: 8),
+                        ),
                       Text(
-                        widget.initialNote == null ? 'NEW CAPTURE' : 'EDIT CAPTURE',
+                        widget.initialNote == null 
+                          ? (_isAnalyzingAI ? 'SNAPI ANALYZING...' : 'NEW CAPTURE') 
+                          : 'EDIT CAPTURE',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w900,
@@ -226,6 +265,11 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                           letterSpacing: 2.5,
                         ),
                       ),
+                      if (_isAnalyzingAI) 
+                         const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 14),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -234,9 +278,41 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                   
                   const SizedBox(height: 20),
 
-                  // Category Selector (New)
+                  // Smart Suggestion Label
+                  if (_suggestedCategory != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8, left: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 12),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Snapi Suggests: ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: CupertinoColors.activeBlue.withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              _suggestedCategory!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: CupertinoColors.activeBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Category Selector
                   SizedBox(
-                    height: 40,
+                    height: 44,
                     child: Row(
                       children: [
                         // Add New Category Button
@@ -244,11 +320,10 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                           onTap: _showAddCategoryDialog,
                           child: Container(
                             margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: CupertinoColors.activeBlue.withOpacity(0.1),
                               shape: BoxShape.circle,
-                              border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.2)),
                             ),
                             child: const Icon(CupertinoIcons.add, color: CupertinoColors.activeBlue, size: 20),
                           ),
@@ -260,27 +335,48 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                             itemBuilder: (context, index) {
                               final cat = _categories[index];
                               final isSelected = _selectedCategory == cat;
+                              final isSuggested = _suggestedCategory == cat && !isSelected;
+                              
                               return GestureDetector(
-                                onTap: () => setState(() => _selectedCategory = cat),
+                                onTap: () {
+                                  setState(() {
+                                    _selectedCategory = cat;
+                                    if (isSuggested) _suggestedCategory = null;
+                                  });
+                                },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   margin: const EdgeInsets.only(right: 8),
                                   padding: const EdgeInsets.symmetric(horizontal: 16),
                                   decoration: BoxDecoration(
-                                    color: isSelected ? CupertinoColors.activeBlue : CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
+                                    color: isSelected 
+                                      ? CupertinoColors.activeBlue 
+                                      : (isSuggested ? CupertinoColors.activeBlue.withOpacity(0.05) : CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.1)),
+                                    borderRadius: BorderRadius.circular(22),
                                     border: Border.all(
-                                      color: isSelected ? CupertinoColors.activeBlue : CupertinoColors.label.resolveFrom(context).withOpacity(0.1),
+                                      color: isSelected 
+                                        ? CupertinoColors.activeBlue 
+                                        : (isSuggested ? CupertinoColors.activeBlue.withOpacity(0.3) : CupertinoColors.label.resolveFrom(context).withOpacity(0.1)),
+                                      width: isSuggested ? 1.5 : 1,
                                     ),
+                                    boxShadow: isSuggested ? [
+                                      BoxShadow(
+                                        color: CupertinoColors.activeBlue.withOpacity(0.1),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      )
+                                    ] : null,
                                   ),
                                   child: Center(
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
-                                          CupertinoIcons.folder_fill,
+                                          isSuggested ? CupertinoIcons.sparkles : CupertinoIcons.folder_fill,
                                           size: 14,
-                                          color: isSelected ? CupertinoColors.white : CupertinoColors.activeBlue.withOpacity(0.7),
+                                          color: isSelected 
+                                            ? CupertinoColors.white 
+                                            : (isSuggested ? CupertinoColors.activeBlue : CupertinoColors.activeBlue.withOpacity(0.7)),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
@@ -288,7 +384,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                                           style: TextStyle(
                                             color: isSelected ? CupertinoColors.white : CupertinoColors.label.resolveFrom(context).withOpacity(0.7),
                                             fontSize: 13,
-                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                            fontWeight: (isSelected || isSuggested) ? FontWeight.bold : FontWeight.w500,
                                           ),
                                         ),
                                       ],

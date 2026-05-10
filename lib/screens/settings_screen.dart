@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _totalCaptures = 0;
   int _deletedCaptures = 0;
   bool _showScreenshotNotifications = true;
+  bool _autoSmartFolders = true;
   PermissionStatus _micStatus = PermissionStatus.denied;
   PermissionStatus _notificationStatus = PermissionStatus.denied;
 
@@ -40,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _totalCaptures = DatabaseService.getAllItems().length;
       _deletedCaptures = DatabaseService.getDeletedItems().length;
       _showScreenshotNotifications = prefs.getBool('show_screenshot_notifications') ?? true;
+      _autoSmartFolders = prefs.getBool('auto_smart_folders') ?? true;
       _micStatus = mic;
       _notificationStatus = notif;
     });
@@ -65,7 +67,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showScreenshotNotifications = value;
     });
   }
-
+  Future<void> _toggleAutoSmartFolders(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('auto_smart_folders', value);
+    setState(() {
+      _autoSmartFolders = value;
+    });
+  }
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
@@ -165,6 +173,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       SnapiApp.of(context).toggleTheme();
                     },
                   ),
+                ),
+                CupertinoListTile(
+                  title: const Text('Smart Auto-Organize'),
+                  subtitle: const Text('AI-powered capture sorting'),
+                  leading: _buildIOSIcon(CupertinoIcons.sparkles, CupertinoColors.activeBlue),
+                  trailing: CupertinoSwitch(
+                    value: _autoSmartFolders,
+                    onChanged: _toggleAutoSmartFolders,
+                  ),
+                  onTap: () => _showAutoOrganizeInfo(context),
                 ),
               ],
             ),
@@ -400,6 +418,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
               fontWeight: FontWeight.w600,
               color: CupertinoColors.activeBlue,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAutoOrganizeInfo(BuildContext context) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Smart Auto-Organize'),
+        content: const Column(
+          children: [
+            SizedBox(height: 12),
+            Text(
+              'Snapi uses AI to read the text inside your screenshots and automatically suggests the best folder for them.',
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'If a matching folder doesn\'t exist, Snapi will even create it for you! You always have the final say before saving.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Got it'),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
