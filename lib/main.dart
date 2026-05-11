@@ -200,9 +200,6 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
               );
               await DatabaseService.addItem(newItem);
             },
-            onDelete: () {
-              _pendingPopups.remove(asset.id);
-            },
           ),
         );
       },

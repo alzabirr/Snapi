@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ScreenshotService {
   static String? _lastImageId;
+  static const String _prefLastId = 'last_handled_screenshot_id';
   static final StreamController<AssetEntity> _screenshotStream = StreamController<AssetEntity>.broadcast();
 
   static Stream<AssetEntity> get screenshotStream => _screenshotStream.stream;
@@ -16,6 +18,10 @@ class ScreenshotService {
       return;
     }
     print('DEBUG: Screenshot monitoring starting with permission: $ps');
+
+    // Load last handled ID from storage
+    final prefs = await SharedPreferences.getInstance();
+    _lastImageId = prefs.getString(_prefLastId);
 
     // Initial check to set baseline
     await _checkForNewScreenshot(isInitial: true);
@@ -58,15 +64,25 @@ class ScreenshotService {
       final AssetEntity latest = entities[0];
       
       if (isInitial) {
-        print('DEBUG: First Run - setting baseline ID: ${latest.id}');
-        _lastImageId = latest.id;
-
+        print('DEBUG: First Run - checking against baseline ID: ${latest.id} (Last Handled: $_lastImageId)');
+        
         final DateTime now = DateTime.now();
         final bool isVeryRecent = now.difference(latest.createDateTime).inSeconds.abs() < 30;
 
         if (isVeryRecent && _isScreenshot(latest)) {
-          print('DEBUG: Found fresh screenshot on startup! Triggering popup.');
-          _screenshotStream.add(latest);
+          if (latest.id != _lastImageId) {
+            print('DEBUG: Found fresh screenshot on startup! Triggering popup.');
+            _screenshotStream.add(latest);
+          } else {
+            print('DEBUG: Fresh screenshot found but already handled: ${latest.id}');
+          }
+        }
+        
+        // Update baseline to the latest seen, even if handled
+        if (_lastImageId != latest.id) {
+          _lastImageId = latest.id;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_prefLastId, latest.id);
         }
         return;
       }
@@ -78,6 +94,8 @@ class ScreenshotService {
           _screenshotStream.add(latest);
         }
         _lastImageId = latest.id;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_prefLastId, latest.id);
       }
     } catch (e) {
       print('DEBUG: Error checking for screenshots: $e');

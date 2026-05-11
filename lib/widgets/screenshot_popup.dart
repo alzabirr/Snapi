@@ -13,7 +13,6 @@ class ScreenshotPopup extends StatefulWidget {
   final String? initialNote;
   final String? initialCategory;
   final Function(String note, String category, String extractedText) onSave;
-  final VoidCallback? onDelete;
 
   const ScreenshotPopup({
     super.key,
@@ -22,7 +21,6 @@ class ScreenshotPopup extends StatefulWidget {
     this.initialNote,
     this.initialCategory,
     required this.onSave,
-    this.onDelete,
   });
 
   @override
@@ -481,20 +479,6 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                   // Unified Primary Action
                   Row(
                     children: [
-                      if (widget.onDelete != null) 
-                        CupertinoButton(
-                          padding: const EdgeInsets.only(right: 16),
-                          onPressed: widget.onDelete,
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: CupertinoColors.destructiveRed.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: CupertinoColors.destructiveRed.withOpacity(0.2), width: 0.5),
-                            ),
-                            child: const Icon(CupertinoIcons.trash, color: CupertinoColors.destructiveRed, size: 22),
-                          ),
-                        ),
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(

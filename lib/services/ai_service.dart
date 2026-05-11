@@ -59,7 +59,7 @@ class AIService {
     if (category == 'Uncategorized') return;
 
     final prefs = await SharedPreferences.getInstance();
-    final categories = prefs.getStringList('user_categories') ?? ['Uncategorized', 'Work', 'Personal', 'Social', 'School'];
+    final categories = prefs.getStringList('user_categories') ?? ['Uncategorized', 'Work', 'Personal', 'Social'];
     
     if (!categories.contains(category)) {
       categories.add(category);

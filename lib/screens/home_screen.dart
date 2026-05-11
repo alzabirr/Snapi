@@ -90,9 +90,6 @@ class _HomeScreenState extends State<HomeScreen> {
           );
           await DatabaseService.addItem(newItem);
         },
-        onDelete: () {
-          // User discarded the manual gallery pick
-        },
       ),
     );
   }

@@ -18,7 +18,8 @@ class MindMapScreen extends StatefulWidget {
   State<MindMapScreen> createState() => _MindMapScreenState();
 }
 
-class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserver {
+class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserver, TickerProviderStateMixin {
+  late AnimationController _waveController;
   late TransformationController _transformationController;
   List<String> _categories = [];
   Map<String, List<ScreenshotItem>> _groupedItems = {};
@@ -43,6 +44,11 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     // Real-time updates when database changes
     DatabaseService.box.listenable().addListener(_onDatabaseChange);
     DatabaseService.categoryNotifier.addListener(_onDatabaseChange);
+
+    _waveController = AnimationController(
+      duration: const Duration(seconds: 4),
+      vsync: this,
+    )..repeat();
   }
 
   void _onDatabaseChange() {
@@ -53,6 +59,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _transformationController.dispose();
+    _waveController.dispose();
     DatabaseService.box.listenable().removeListener(_onDatabaseChange);
     DatabaseService.categoryNotifier.removeListener(_onDatabaseChange);
     super.dispose();
@@ -86,7 +93,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
       var cats = prefs.getStringList('user_categories');
       
       if (cats == null || cats.isEmpty) {
-        cats = ['Uncategorized', 'Work', 'Personal', 'Social', 'School'];
+        cats = ['Uncategorized', 'Work', 'Personal', 'Social'];
       }
       
       final allItems = DatabaseService.getAllItems();
@@ -499,86 +506,84 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     return Positioned(
       left: pos.dx - (isCenter ? 70 : 55),
       top: pos.dy - (isCenter ? 70 : 55),
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          // Direct update for better performance
-          _customOffsets[id] = pos + details.delta;
-          setState(() {}); 
+      child: AnimatedBuilder(
+        animation: _waveController,
+        builder: (context, child) {
+          final double wave = sin((_waveController.value * 2 * pi) + (id.hashCode % 10));
+          return Transform.translate(
+            offset: Offset(0, wave * 8),
+            child: child,
+          );
         },
-        onTap: () {
-          if (!isCenter) {
-            final categoryName = label;
-            final items = _groupedItems[categoryName] ?? [];
-            Navigator.push(
-              context,
-              CupertinoPageRoute(
-                builder: (context) => CategoryDetailScreen(
-                  category: categoryName,
-                  items: items,
-                ),
-              ),
-            );
-          }
-        },
-        child: AnimatedScale(
-          scale: 1.0, // Can be expanded for hover effects later
-          duration: const Duration(milliseconds: 200),
-          child: Column(
-          children: [
-            Container(
-              width: isCenter ? 140 : 110,
-              height: isCenter ? 140 : 110,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [color.withOpacity(0.4), color.withOpacity(0.1)],
-                ),
-                shape: BoxShape.circle,
-                border: Border.all(color: color.withOpacity(0.6), width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.3),
-                    blurRadius: 15,
-                    spreadRadius: 2,
+        child: GestureDetector(
+          onPanUpdate: (details) {
+            _customOffsets[id] = pos + details.delta;
+            setState(() {}); 
+          },
+          onTap: () {
+            if (!isCenter) {
+              final categoryName = label;
+              final items = _groupedItems[categoryName] ?? [];
+              Navigator.push(
+                context,
+                CupertinoPageRoute(
+                  builder: (context) => CategoryDetailScreen(
+                    category: categoryName,
+                    items: items,
                   ),
-                ],
-              ),
-              child: Container(
-                margin: const EdgeInsets.all(10),
+                ),
+              );
+            }
+          },
+          child: Column(
+            children: [
+              Container(
+                width: isCenter ? 140 : 110,
+                height: isCenter ? 140 : 110,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withOpacity(0.1),
                   shape: BoxShape.circle,
+                  border: Border.all(color: color.withOpacity(0.6), width: 2),
                 ),
-                child: Icon(
-                  isCenter ? CupertinoIcons.sparkles : CupertinoIcons.folder_fill,
-                  color: color,
-                  size: isCenter ? 50 : 35,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 5),
-                ],
-              ),
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
+                child: Container(
+                  margin: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: isCenter 
+                    ? Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset('assets/snapi.png', fit: BoxFit.contain),
+                      )
+                    : Icon(
+                        CupertinoIcons.folder_fill,
+                        color: color,
+                        size: 35,
+                      ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
@@ -587,64 +592,66 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
     return Positioned(
       left: pos.dx - 50,
       top: pos.dy - 60,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          _customOffsets[item.id] = pos + details.delta;
-          setState(() {});
+      child: AnimatedBuilder(
+        animation: _waveController,
+        builder: (context, child) {
+          final double wave = sin((_waveController.value * 2 * pi) + (item.id.hashCode % 10));
+          return Transform.translate(
+            offset: Offset(0, wave * 6),
+            child: child,
+          );
         },
-        onTap: () => Navigator.push(
-          context,
-          CupertinoPageRoute(builder: (context) => CaptureDetailsScreen(item: item)),
-        ),
-        child: Container(
-          width: 100,
-          height: 130,
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: CupertinoColors.systemBackground.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.3)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
+        child: GestureDetector(
+          onPanUpdate: (details) {
+            _customOffsets[item.id] = pos + details.delta;
+            setState(() {});
+          },
+          onTap: () => Navigator.push(
+            context,
+            CupertinoPageRoute(builder: (context) => CaptureDetailsScreen(item: item)),
           ),
-          child: Column(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.file(
-                        File(item.path),
-                        fit: BoxFit.cover,
-                        cacheWidth: 200,
-                        errorBuilder: (c, e, s) => Container(
-                          color: CupertinoColors.systemGrey6,
-                          child: const Icon(CupertinoIcons.photo, size: 30, color: CupertinoColors.systemGrey),
+          child: Container(
+            width: 100,
+            height: 130,
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: CupertinoColors.systemBackground.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.3)),
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(
+                          File(item.path),
+                          fit: BoxFit.cover,
+                          cacheWidth: 200,
+                          errorBuilder: (c, e, s) => Container(
+                            color: CupertinoColors.systemGrey6,
+                            child: const Icon(CupertinoIcons.photo, size: 30, color: CupertinoColors.systemGrey),
+                          ),
                         ),
-                      ),
-                      // Overlay gradient for better text readability if needed
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, Colors.black.withOpacity(0.2)],
+                        // Overlay gradient for better text readability if needed
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, Colors.black.withOpacity(0.2)],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(height: 6),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -665,6 +672,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
           ),
         ),
       ),
+    ),
     );
   }
 

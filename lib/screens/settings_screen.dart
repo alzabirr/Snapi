@@ -11,6 +11,7 @@ import '../services/screenshot_service.dart';
 import 'recycle_bin_screen.dart';
 import 'category_manager_screen.dart';
 import '../widgets/floating_profile_icon.dart';
+import 'smart_organize_detail_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -176,13 +177,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 CupertinoListTile(
                   title: const Text('Smart Auto-Organize'),
-                  subtitle: const Text('AI-powered capture sorting'),
+                  subtitle: const Text('AI-powered sorting • Tap to see how it works'),
                   leading: _buildIOSIcon(CupertinoIcons.sparkles, CupertinoColors.activeBlue),
                   trailing: CupertinoSwitch(
                     value: _autoSmartFolders,
                     onChanged: _toggleAutoSmartFolders,
                   ),
-                  onTap: () => _showAutoOrganizeInfo(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(builder: (context) => const SmartOrganizeDetailScreen()),
+                    );
+                  },
                 ),
               ],
             ),
