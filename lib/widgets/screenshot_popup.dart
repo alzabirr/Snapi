@@ -94,14 +94,14 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
   Future<void> _runAIAnalysis() async {
     setState(() => _isAnalyzingAI = true);
     try {
-      final category = await AIService.analyzeAndSuggest(_imageFile!.path);
-      if (mounted && category != 'Uncategorized') {
+      final result = await AIService.analyzeAndSuggest(_imageFile!.path);
+      if (mounted && result.category != 'Other') {
         // Refresh categories list in case AIService created a new one silently
         await _loadCategories();
         
         setState(() {
-          _suggestedCategory = category;
-          _selectedCategory = category; // Auto-select the suggestion
+          _suggestedCategory = result.category;
+          _selectedCategory = result.category; // Auto-select the suggestion
         });
       }
     } catch (e) {

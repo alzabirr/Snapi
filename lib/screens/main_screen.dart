@@ -5,7 +5,7 @@ import 'settings_screen.dart';
 import 'add_screen.dart';
 import 'search_screen.dart';
 import 'category_screen.dart';
-import 'mind_map_screen.dart';
+import 'visual_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -20,7 +20,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const CategoryScreen(),
-    const MindMapScreen(),
+    const VisualScreen(),
     const SettingsScreen(),
     const AddScreen(), // The separate + button will switch to this or show it
   ];

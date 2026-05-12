@@ -11,14 +11,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'capture_details_screen.dart';
 import 'category_screen.dart';
 
-class MindMapScreen extends StatefulWidget {
-  const MindMapScreen({super.key});
+class VisualScreen extends StatefulWidget {
+  const VisualScreen({super.key});
 
   @override
-  State<MindMapScreen> createState() => _MindMapScreenState();
+  State<VisualScreen> createState() => _VisualScreenState();
 }
 
-class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserver, TickerProviderStateMixin {
+class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver, TickerProviderStateMixin {
   late AnimationController _waveController;
   late TransformationController _transformationController;
   List<String> _categories = [];
@@ -130,7 +130,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
       backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
       navigationBar: CupertinoNavigationBar(
         middle: Text(
-          'SNAPI HUB',
+          'VISUAL',
           style: TextStyle(
             color: isDark ? CupertinoColors.white : CupertinoColors.black,
             fontWeight: FontWeight.w800,
@@ -196,7 +196,7 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
                             ),
                           ),
                         ),
-                        _buildDraggableNode(2500, 2500, 'SNAPI HUB', CupertinoColors.activeBlue, 'root', isCenter: true),
+                        _buildDraggableNode(2500, 2500, '', CupertinoColors.activeBlue, 'root', isCenter: true),
                         ..._buildCategoryBranches(),
                       ],
                     ),
@@ -563,23 +563,25 @@ class _MindMapScreenState extends State<MindMapScreen> with WidgetsBindingObserv
                       ),
                 ),
               ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+              if (label.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
