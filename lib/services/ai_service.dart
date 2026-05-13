@@ -66,8 +66,8 @@ class AIService {
 
 
     'Pets & Animals': {
-      'animal': 3.0, 'pets': 2.5, 'cat': 2.5, 'dog': 2.5, 'bird': 2.0, 'wildlife': 2.5, 'veterinary': 2.5,
-      'cow': 2.0, 'tiger': 2.0, 'lion': 2.0, 'zoo': 2.0, 'ethology': 3.0,
+      'animal': 3.0, 'pets': 2.5, 'cat': 4.5, 'kitten': 4.0, 'kitty': 3.5, 'feline': 3.5, 'dog': 2.5, 'puppy': 2.5, 'canine': 2.5,
+      'bird': 2.0, 'wildlife': 2.5, 'veterinary': 2.5, 'cow': 2.0, 'tiger': 2.0, 'lion': 2.0, 'zoo': 2.0, 'ethology': 3.0,
     },
     'Sports': {
       'football': 3.0, 'cricket': 3.0, 'badminton': 3.0, 'basketball': 2.5, 'tennis': 2.5, 'soccer': 2.5,
@@ -249,6 +249,10 @@ class AIService {
     },
 
 
+    'Pets & Animals': {
+      'animal': 3.0, 'pets': 2.5, 'cat': 5.0, 'kitten': 4.5, 'kitty': 4.0, 'feline': 4.0, 'dog': 3.0, 'puppy': 3.0, 'canine': 3.0,
+      'bird': 2.0, 'wildlife': 2.5, 'veterinary': 2.5
+    },
     'Supply Chain': {
       'inventory': 2.5, 'procurement': 3.0, 'logistics': 3.0, 'warehousing': 2.5, 'supply chain': 3.0
     }
