@@ -392,6 +392,34 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                     ),
+                                    // Removed from Gallery Overlay
+                                    if (!File(item.path).existsSync())
+                                      Positioned.fill(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: CupertinoColors.black.withOpacity(0.65),
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(CupertinoIcons.trash_fill, color: CupertinoColors.systemRed, size: 30),
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: CupertinoColors.systemRed.withOpacity(0.9),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: const Text(
+                                                  'REMOVED FROM GALLERY',
+                                                  style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 7, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),

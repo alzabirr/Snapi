@@ -377,7 +377,14 @@ class AIService {
     return ClassificationResult(bestCategory, confidence.clamp(0, 100));
   }
 
-  static String _normalize(String text) => text.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+  static String _normalize(String text) {
+    // Preserve letters and numbers across all languages (including Bangla)
+    // Replace punctuation and special symbols with spaces
+    return text.toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
 
   static bool _isFuzzyMatch(String a, String b) {
     if (a.length < 5 || (a.length - b.length).abs() > 1) return false;
@@ -399,15 +406,7 @@ class AIService {
     if (category == 'Other' || category == 'Uncategorized') return;
     final prefs = await SharedPreferences.getInstance();
     final categories = prefs.getStringList('user_categories') ?? ['Uncategorized', 'Personal'];
-    if (categories.contains('Work')) {
-      categories.remove('Work');
-      await prefs.setStringList('user_categories', categories);
-    }
-    if (categories.contains('Social')) {
-      categories.remove('Social');
-      await prefs.setStringList('user_categories', categories);
-    }
-
+    
     if (!categories.contains(category)) {
       categories.add(category);
       await prefs.setStringList('user_categories', categories);

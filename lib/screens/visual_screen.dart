@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Colors;
 import '../models/screenshot_item.dart';
@@ -31,6 +32,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   bool _isMenuOpen = false;
   String? _draggedId;
 
+  Timer? _debounceTimer;
+
   @override
   void initState() {
     super.initState();
@@ -48,11 +51,15 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   }
 
   void _onDatabaseChange() {
-    if (mounted) _loadData(isAutoRefresh: true);
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 1000), () {
+      if (mounted) _loadData(isAutoRefresh: true);
+    });
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _transformationController.dispose();
     _waveController.dispose();
@@ -76,14 +83,33 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     _transformationController.value = Matrix4.identity()..translate(tx, ty)..scale(scale);
   }
 
+  Future<void> _saveOffsets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final Map<String, String> encoded = {};
+    _customOffsets.forEach((key, value) {
+      encoded[key] = '${value.dx},${value.dy}';
+    });
+    await prefs.setString('visual_offsets', jsonEncode(encoded));
+  }
+
   Future<void> _loadData({bool isAutoRefresh = false}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       var cats = prefs.getStringList('user_categories');
       if (cats == null || cats.isEmpty) cats = ['Uncategorized', 'Personal'];
-      
-      // Ensure uniqueness
       cats = cats.toSet().toList();
+
+      // Load saved offsets
+      final savedStr = prefs.getString('visual_offsets');
+      if (savedStr != null) {
+        final Map<String, dynamic> decoded = jsonDecode(savedStr);
+        decoded.forEach((key, value) {
+          final parts = value.toString().split(',');
+          if (parts.length == 2) {
+            _customOffsets[key] = Offset(double.parse(parts[0]), double.parse(parts[1]));
+          }
+        });
+      }
       
       final allItems = DatabaseService.getAllItems();
       final Map<String, List<ScreenshotItem>> grouped = {};
@@ -290,7 +316,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         double angle = (2 * pi * i) / total;
         double defCatX = centerX + 600 * cos(angle);
         double defCatY = centerY + 600 * sin(angle);
-        final String nodeId = 'date_${dateCategories[i]}_$i';
+        final String nodeId = 'date_${dateCategories[i]}';
         widgets.add(_buildDraggableNode(defCatX, defCatY, dateCategories[i], CupertinoColors.systemIndigo, nodeId));
         final items = _groupedItems.values.expand((x) => x).where((it) => '${it.createdAt.day} ${_getMonthName(it.createdAt.month)} ${it.createdAt.year}' == dateCategories[i]).toList();
         final catPos = _getNodePos(nodeId, defCatX, defCatY);
@@ -307,7 +333,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         double r = 750.0 + (i % 2 * 350.0);
         double defCatX = centerX + r * cos(angle);
         double defCatY = centerY + r * sin(angle);
-        final String nodeId = 'cat_${_categories[i]}_$i';
+        final String nodeId = 'cat_${_categories[i]}';
         widgets.add(_buildDraggableNode(defCatX, defCatY, _categories[i], _getCategoryColor(i), nodeId));
         final catPos = _getNodePos(nodeId, defCatX, defCatY);
         final items = _groupedItems[_categories[i]] ?? [];
@@ -340,7 +366,10 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
             _customOffsets['mode_${_viewMode}_$id'] = (_customOffsets['mode_${_viewMode}_$id'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.85;
           });
         },
-        onPanEnd: (_) => setState(() => _draggedId = null),
+        onPanEnd: (_) {
+          setState(() => _draggedId = null);
+          _saveOffsets();
+        },
         onTap: () { if (!isCenter) Navigator.push(context, CupertinoPageRoute(builder: (c) => CategoryDetailScreen(category: label, items: _groupedItems[label] ?? []))); },
         child: AnimatedBuilder(
           animation: _waveController,
@@ -349,6 +378,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
             double scale = isDragging ? 1.1 : (isCenter ? 1.0 + wave * 0.05 : 1.0);
             return Transform.scale(scale: scale, child: Transform.translate(offset: Offset(0, wave * (isCenter ? 4 : 8)), child: child));
           },
+        child: RepaintBoundary(
           child: Column(
             children: [
               Container(
@@ -377,10 +407,21 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
               ),
               if (label.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                Text(
+                  label, 
+                  style: TextStyle(
+                    color: CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, 
+                    fontSize: 14, 
+                    fontWeight: FontWeight.w900,
+                    shadows: [
+                      Shadow(color: (CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white).withOpacity(0.5), blurRadius: 4)
+                    ]
+                  )
+                ),
               ]
             ],
           ),
+        ),
         ),
       ),
     );
@@ -408,6 +449,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         onPanEnd: (_) {
           final draggedIdCopy = _draggedId;
           setState(() => _draggedId = null);
+          _saveOffsets();
           
           if (draggedIdCopy != null && draggedIdCopy.startsWith('item_')) {
             final itemId = draggedIdCopy.substring(5);
@@ -440,54 +482,86 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
               child: Transform.translate(offset: Offset(0, wave * 6), child: child)
             );
           },
-          child: Container(
-            width: 110, height: 140,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDragging ? 0.4 : 0.25), 
-                  blurRadius: isDragging ? 35 : 18, 
-                  offset: isDragging ? const Offset(0, 15) : const Offset(0, 6),
-                ),
-                if (isDragging) BoxShadow(color: CupertinoColors.activeBlue.withOpacity(0.4), blurRadius: 20, spreadRadius: 2),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.file(File(item.path), fit: BoxFit.cover, cacheWidth: 200),
+          child: RepaintBoundary(
+            child: Container(
+              width: 110, height: 140,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDragging ? 0.4 : 0.25), 
+                    blurRadius: isDragging ? 35 : 18, 
+                    offset: isDragging ? const Offset(0, 15) : const Offset(0, 6),
                   ),
-                ),
-                Positioned(
-                  bottom: 0, left: 0, right: 0,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: (CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white).withOpacity(0.3),
-                          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1), width: 0.5)),
-                        ),
-                        child: Text(
-                          item.note.isEmpty ? 'Capture' : item.note, 
-                          maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 10, 
-                            fontWeight: FontWeight.w800, 
-                            color: CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                            letterSpacing: 0.3
-                          )
+                  if (isDragging) BoxShadow(color: CupertinoColors.activeBlue.withOpacity(0.4), blurRadius: 20, spreadRadius: 2),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.file(
+                        File(item.path), 
+                        fit: BoxFit.cover, 
+                        cacheWidth: 180,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: CupertinoColors.systemGrey6,
+                          child: const Center(child: Icon(CupertinoIcons.photo_on_rectangle, color: CupertinoColors.systemGrey, size: 30)),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  Positioned(
+                    bottom: 0, left: 0, right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: (CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white).withOpacity(0.6),
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                      ),
+                      child: Text(
+                        item.note.isEmpty ? 'Capture' : item.note, 
+                        maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 10, 
+                          fontWeight: FontWeight.w800, 
+                          color: CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                          letterSpacing: 0.3
+                        )
+                      ),
+                    ),
+                  ),
+                  if (!File(item.path).existsSync())
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(CupertinoIcons.trash_fill, color: CupertinoColors.systemRed, size: 35),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: CupertinoColors.systemRed.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Removed from Gallery',
+                                style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -597,7 +671,7 @@ class MindMapPainter extends CustomPainter {
       final double total = dateCategories.isEmpty ? 1.0 : dateCategories.length.toDouble();
       for (int i = 0; i < dateCategories.length; i++) {
         double angle = (2 * pi * i) / total;
-        final String nodeId = 'date_${dateCategories[i]}_$i';
+        final String nodeId = 'date_${dateCategories[i]}';
         final catPos = _getPos(nodeId, center + 600 * cos(angle), center + 600 * sin(angle));
         _drawCurve(canvas, centerPos, catPos, paint);
         final items = groupedItems.values.expand((x) => x).where((it) => '${it.createdAt.day} ${getMonthName(it.createdAt.month)} ${it.createdAt.year}' == dateCategories[i]).toList();
@@ -612,7 +686,7 @@ class MindMapPainter extends CustomPainter {
       for (int i = 0; i < categories.length; i++) {
         double angle = (2 * pi * i) / total;
         double r = 750.0 + (i % 2 * 350.0);
-        final String nodeId = 'cat_${categories[i]}_$i';
+        final String nodeId = 'cat_${categories[i]}';
         final catPos = _getPos(nodeId, center + r * cos(angle), center + r * sin(angle));
         _drawCurve(canvas, centerPos, catPos, paint);
         final items = groupedItems[categories[i]] ?? [];
