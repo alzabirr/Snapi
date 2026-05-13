@@ -210,9 +210,12 @@ class AIService {
     'Sports Science': {
       'biomechanics': 3.0, 'kinesiology': 3.0, 'sports nutrition': 3.0, 'fitness': 2.0, 'athlete': 2.5
     },
-    'Culinary Arts': {
-      'gastronomy': 3.0, 'sous-vide': 3.0, 'recipe': 2.0, 'food': 2.5, 'chef': 2.5
+    'Food': {
+      'recipe': 3.0, 'food': 3.0, 'cooking': 2.5, 'chef': 2.5, 'kitchen': 2.0,
+      'dinner': 2.0, 'lunch': 2.0, 'breakfast': 2.0, 'ingredients': 2.5,
+      'restaurant': 2.0, 'delicious': 2.0, 'gastronomy': 3.0, 'sous-vide': 3.0,
     },
+
     'Fashion': {
       'couture': 3.0, 'textile': 2.5, 'runway': 2.5, 'fashion': 2.5
     },
@@ -388,7 +391,8 @@ class AIService {
   static Future<void> ensureCategoryExists(String category) async {
     if (category == 'Other' || category == 'Uncategorized') return;
     final prefs = await SharedPreferences.getInstance();
-    final categories = prefs.getStringList('user_categories') ?? ['Uncategorized', 'Work', 'Personal', 'Social'];
+    final categories = prefs.getStringList('user_categories') ?? ['Uncategorized', 'Work', 'Personal'];
+
     if (!categories.contains(category)) {
       categories.add(category);
       await prefs.setStringList('user_categories', categories);
