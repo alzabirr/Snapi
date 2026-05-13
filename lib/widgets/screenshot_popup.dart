@@ -216,323 +216,248 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPopupSurface(
-      child: Container(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          left: 20,
-          right: 20,
-          top: 12,
-        ),
-        decoration: BoxDecoration(
-          color: CupertinoTheme.of(context).barBackgroundColor,
-        ),
-        child: SafeArea(
-          top: false,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Elegant handle
-                  Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 24),
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_isAnalyzingAI) 
-                        const Padding(
-                          padding: EdgeInsets.only(right: 8),
-                          child: CupertinoActivityIndicator(radius: 8),
-                        ),
-                      Text(
-                        widget.initialNote == null 
-                          ? (_isAnalyzingAI ? 'SNAPI ANALYZING...' : 'NEW CAPTURE') 
-                          : 'EDIT CAPTURE',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: CupertinoColors.activeBlue,
-                          letterSpacing: 2.5,
-                        ),
-                      ),
-                      if (_isAnalyzingAI) 
-                         const Padding(
-                          padding: EdgeInsets.only(left: 8),
-                          child: Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 14),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     
-                  _buildImage(),
-                  
-                  const SizedBox(height: 20),
+    // Theme-based colors
+    final backgroundColor = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
+    final surfaceColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
+    final secondaryTextColor = isDark ? CupertinoColors.white.withOpacity(0.5) : CupertinoColors.black.withOpacity(0.5);
+    final iconColor = isDark ? CupertinoColors.white.withOpacity(0.4) : CupertinoColors.black.withOpacity(0.4);
+    final borderColor = isDark ? CupertinoColors.white.withOpacity(0.08) : CupertinoColors.black.withOpacity(0.08);
 
-                  // Smart Suggestion Label
-                  if (_suggestedCategory != null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 8, left: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 12),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Snapi Suggests: ',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: CupertinoColors.activeBlue.withOpacity(0.8),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              _suggestedCategory!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: CupertinoColors.activeBlue,
-                              ),
+    return Container(
+      height: MediaQuery.of(context).size.height,
+      width: MediaQuery.of(context).size.width,
+      color: backgroundColor,
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            // Close button at top
+            Positioned(
+              top: 20,
+              right: 20,
+              child: CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDark ? CupertinoColors.white.withOpacity(0.1) : CupertinoColors.black.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(CupertinoIcons.xmark, color: textColor, size: 20),
+                ),
+              ),
+            ),
+
+            // Main Layout Column
+            Column(
+              children: [
+                // PART 1: Large Image Section
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+                    child: Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: CupertinoColors.black.withOpacity(isDark ? 0.5 : 0.1),
+                              blurRadius: 40,
                             ),
                           ],
                         ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _imageFile != null 
+                          ? Image.file(_imageFile!, fit: BoxFit.contain)
+                          : const CupertinoActivityIndicator(),
                       ),
                     ),
+                  ),
+                ),
 
-                  // Category Selector
-                  SizedBox(
-                    height: 44,
-                    child: Row(
-                      children: [
-                        // Add New Category Button
-                        GestureDetector(
-                          onTap: _showAddCategoryDialog,
+                // PART 2: Snapi Suggest & Category Section
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_suggestedCategory != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
                           child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
                               color: CupertinoColors.activeBlue.withOpacity(0.1),
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Icon(CupertinoIcons.add, color: CupertinoColors.activeBlue, size: 20),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 14),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'SNAPI SUGGESTS: ',
+                                  style: TextStyle(
+                                    color: CupertinoColors.activeBlue.withOpacity(0.7),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                Text(
+                                  _suggestedCategory!.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: CupertinoColors.activeBlue,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        Expanded(
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _categories.length,
-                            itemBuilder: (context, index) {
-                              final cat = _categories[index];
+                      
+                      // Folder List
+                      SizedBox(
+                        height: 42,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          children: [
+                            // Add Folder
+                            GestureDetector(
+                              onTap: _showAddCategoryDialog,
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                decoration: BoxDecoration(
+                                  color: isDark ? CupertinoColors.white.withOpacity(0.08) : CupertinoColors.black.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: borderColor),
+                                ),
+                                child: Icon(CupertinoIcons.add, color: textColor, size: 18),
+                              ),
+                            ),
+                            ..._categories.map((cat) {
                               final isSelected = _selectedCategory == cat;
-                              final isSuggested = _suggestedCategory == cat && !isSelected;
-                              
                               return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedCategory = cat;
-                                    if (isSuggested) _suggestedCategory = null;
-                                  });
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
+                                onTap: () => setState(() => _selectedCategory = cat),
+                                child: Container(
                                   margin: const EdgeInsets.only(right: 8),
                                   padding: const EdgeInsets.symmetric(horizontal: 16),
                                   decoration: BoxDecoration(
-                                    color: isSelected 
-                                      ? CupertinoColors.activeBlue 
-                                      : (isSuggested ? CupertinoColors.activeBlue.withOpacity(0.05) : CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.1)),
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                      color: isSelected 
-                                        ? CupertinoColors.activeBlue 
-                                        : (isSuggested ? CupertinoColors.activeBlue.withOpacity(0.3) : CupertinoColors.label.resolveFrom(context).withOpacity(0.1)),
-                                      width: isSuggested ? 1.5 : 1,
-                                    ),
-                                    boxShadow: isSuggested ? [
-                                      BoxShadow(
-                                        color: CupertinoColors.activeBlue.withOpacity(0.1),
-                                        blurRadius: 8,
-                                        spreadRadius: 1,
-                                      )
-                                    ] : null,
+                                    color: isSelected ? CupertinoColors.activeBlue : (isDark ? CupertinoColors.white.withOpacity(0.05) : CupertinoColors.black.withOpacity(0.03)),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: isSelected ? CupertinoColors.activeBlue : borderColor),
                                   ),
                                   child: Center(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          isSuggested ? CupertinoIcons.sparkles : CupertinoIcons.folder_fill,
-                                          size: 14,
-                                          color: isSelected 
-                                            ? CupertinoColors.white 
-                                            : (isSuggested ? CupertinoColors.activeBlue : CupertinoColors.activeBlue.withOpacity(0.7)),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          cat,
-                                          style: TextStyle(
-                                            color: isSelected ? CupertinoColors.white : CupertinoColors.label.resolveFrom(context).withOpacity(0.7),
-                                            fontSize: 13,
-                                            fontWeight: (isSelected || isSuggested) ? FontWeight.bold : FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
+                                    child: Text(
+                                      cat,
+                                      style: TextStyle(
+                                        color: isSelected ? CupertinoColors.white : secondaryTextColor,
+                                        fontSize: 12,
+                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                      ),
                                     ),
                                   ),
                                 ),
                               );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-                  
-                  // Beautiful & User-Friendly Description Area
-                  Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: _isListening ? CupertinoColors.activeBlue.resolveFrom(context).withOpacity(0.4) : CupertinoColors.label.resolveFrom(context).withOpacity(0.05),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        CupertinoTextField(
-                          controller: _noteController,
-                          placeholder: 'Add a note...',
-                          placeholderStyle: TextStyle(
-                            color: CupertinoColors.systemGrey.withOpacity(0.3),
-                            fontSize: 16,
-                            letterSpacing: -0.2,
-                          ),
-                          maxLines: 5,
-                          minLines: 3,
-                          padding: const EdgeInsets.fromLTRB(22, 22, 22, 12),
-                          style: TextStyle(
-                            color: CupertinoColors.label.resolveFrom(context),
-                            fontSize: 16,
-                            height: 1.5,
-                            letterSpacing: -0.1,
-                          ),
-                          decoration: null,
-                          cursorColor: CupertinoColors.activeBlue,
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 14, right: 14, bottom: 14),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // Minimalist Record Button
-                              GestureDetector(
-                                onTap: _toggleListening,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: _isListening ? CupertinoColors.destructiveRed.withOpacity(0.15) : CupertinoColors.activeBlue.withOpacity(0.08),
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        _isListening ? CupertinoIcons.stop_fill : CupertinoIcons.mic_fill,
-                                        size: 16,
-                                        color: _isListening ? CupertinoColors.destructiveRed : CupertinoColors.activeBlue,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _isListening ? 'STOP' : 'ADD VOICE',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.5,
-                                          color: _isListening ? CupertinoColors.destructiveRed : CupertinoColors.activeBlue,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Unified Primary Action
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: CupertinoColors.activeBlue.withOpacity(0.2),
-                                blurRadius: 15,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: CupertinoButton(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            color: CupertinoColors.activeBlue,
-                            borderRadius: BorderRadius.circular(20),
-                            onPressed: () {
-                              widget.onSave(_noteController.text, _selectedCategory, _extractedText);
-                              Navigator.pop(context);
-                            },
-                            child: Center(
-                              child: Text(
-                                widget.initialNote == null ? 'SAVE CAPTURE' : 'UPDATE CAPTURE',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900, 
-                                  fontSize: 16, 
-                                  color: CupertinoColors.white,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                            ),
-                          ),
+                            }).toList(),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  CupertinoButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      'DISCARD',
-                      style: TextStyle(
-                        color: CupertinoColors.label.resolveFrom(context).withOpacity(0.4),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.0,
-                      ),
+                ),
+
+                // PART 3: Input Section
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: 20, 
+                    right: 20, 
+                    bottom: bottomPadding > 0 ? bottomPadding + 10 : 30
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: surfaceColor,
+                      borderRadius: BorderRadius.circular(40),
+                      border: Border.all(color: borderColor),
+                      boxShadow: [
+                        if (!isDark)
+                          BoxShadow(
+                            color: CupertinoColors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        // Voice Button
+                        CupertinoButton(
+                          padding: const EdgeInsets.only(left: 10),
+                          onPressed: _toggleListening,
+                          child: Icon(
+                            _isListening ? CupertinoIcons.stop_fill : CupertinoIcons.mic_fill,
+                            color: _isListening ? CupertinoColors.systemRed : iconColor,
+                            size: 20,
+                          ),
+                        ),
+                        
+                        // Text Input
+                        Expanded(
+                          child: CupertinoTextField(
+                            controller: _noteController,
+                            placeholder: 'Add a note...',
+                            placeholderStyle: TextStyle(
+                              color: secondaryTextColor.withOpacity(0.4),
+                              fontSize: 16,
+                            ),
+                            style: TextStyle(color: textColor, fontSize: 16),
+                            decoration: null,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            cursorColor: CupertinoColors.activeBlue,
+                            autofocus: true,
+                          ),
+                        ),
+
+                        // Action Button (Blue & Flat)
+                        GestureDetector(
+                          onTap: () {
+                            widget.onSave(_noteController.text, _selectedCategory, _extractedText);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            width: 46,
+                            height: 46,
+                            decoration: const BoxDecoration(
+                              color: CupertinoColors.activeBlue,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              CupertinoIcons.arrow_right,
+                              color: CupertinoColors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
+          ],
         ),
-      );
-    }
+      ),
+    );
+  }
 }

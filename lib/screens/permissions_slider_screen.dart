@@ -24,7 +24,8 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> {
       'features': [
         {'icon': CupertinoIcons.square_grid_2x2_fill, 'text': 'Smart Catalog'},
         {'icon': CupertinoIcons.mic_fill, 'text': 'Voice Memos'},
-        {'icon': CupertinoIcons.graph_circle_fill, 'text': 'SNAPI HUB'},
+        {'icon': CupertinoIcons.graph_circle_fill, 'text': 'Visual'},
+        {'icon': CupertinoIcons.sparkles, 'text': 'AI Organization'},
       ],
       'action': (BuildContext context) async {},
     },
