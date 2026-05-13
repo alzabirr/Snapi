@@ -30,8 +30,9 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   bool _isMenuOpen = false;
   Timer? _refreshTimer;
 
-  Offset _getNodePos(String id, double defaultX, double defaultY) {
-    return _customOffsets[id] ?? Offset(defaultX, defaultY);
+  Offset _getNodePos(String id, double defX, double defY) {
+    final key = 'mode_${_viewMode}_$id';
+    return _customOffsets[key] ?? Offset(defX, defY);
   }
 
   @override
@@ -182,8 +183,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                   child: RepaintBoundary(
                     child: Stack(
                       children: [
-                        // Background Grid (Inside InteractiveViewer for perfect sync)
-                        // Grid removed for solid black background
+                        // Clean minimalist background
                         Positioned.fill(
                           child: CustomPaint(
                             painter: MindMapPainter(
@@ -193,6 +193,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                               customOffsets: _customOffsets,
                               viewMode: _viewMode,
                               dateCategories: _getDateCategories(),
+                              getMonthName: _getMonthName,
                             ),
                           ),
                         ),
@@ -203,33 +204,34 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                   ),
                 ),
               ),
-              // Floating Instruction Card
+              // Glassmorphic Instruction Card
               Positioned(
                 top: 20,
                 left: 20,
                 right: 20,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(20),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        color: (isDark ? Colors.black : Colors.white).withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.3)),
+                        color: (isDark ? Colors.black : Colors.white).withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.2)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(CupertinoIcons.info_circle_fill, color: CupertinoColors.activeBlue, size: 20),
+                          const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 20),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Pinch to zoom, drag nodes to move them. Tap for details.',
+                              'Explore your visual catalog. Drag nodes to move.',
                               style: TextStyle(
                                 color: isDark ? Colors.white : Colors.black,
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
                               ),
                             ),
                           ),
@@ -239,7 +241,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                   ),
                 ),
               ),
-              // Floating Action Buttons
+              // Floating Action Buttons (Redesigned)
               Positioned(
                 bottom: 110,
                 right: 20,
@@ -247,10 +249,9 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: 12),
-                    // Vertical Menu (Animated)
                     SizedBox(
                       height: 250,
-                      width: 150,
+                      width: 160,
                       child: Stack(
                         alignment: Alignment.bottomRight,
                         clipBehavior: Clip.none,
@@ -259,8 +260,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                             index: 2,
                             isOpen: _isMenuOpen,
                             icon: CupertinoIcons.square_grid_2x2_fill,
-                            label: 'Show All',
-                            bottom: 180,
+                            label: 'Overview',
+                            bottom: 185,
                             onPressed: () {
                               setState(() {
                                 _viewMode = 0;
@@ -271,8 +272,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                           _buildAnimatedMenuButton(
                             index: 1,
                             isOpen: _isMenuOpen,
-                            icon: CupertinoIcons.calendar,
-                            label: 'By Date',
+                            icon: CupertinoIcons.time_solid,
+                            label: 'Timeline',
                             bottom: 125,
                             onPressed: () {
                               setState(() {
@@ -284,9 +285,9 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                           _buildAnimatedMenuButton(
                             index: 0,
                             isOpen: _isMenuOpen,
-                            icon: CupertinoIcons.folder_fill,
-                            label: 'Folders',
-                            bottom: 70,
+                            icon: CupertinoIcons.folder_solid,
+                            label: 'Clusters',
+                            bottom: 65,
                             onPressed: () {
                               setState(() {
                                 _viewMode = 1;
@@ -295,10 +296,10 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                             },
                           ),
                           _buildFloatingButton(
-                            icon: _isMenuOpen ? CupertinoIcons.xmark : CupertinoIcons.layers_fill,
-                            label: 'View',
+                            icon: _isMenuOpen ? CupertinoIcons.xmark : CupertinoIcons.slider_horizontal_3,
+                            label: 'Layout',
                             onPressed: () => setState(() => _isMenuOpen = !_isMenuOpen),
-                            color: CupertinoColors.activeBlue, // Always blue
+                            color: CupertinoColors.activeBlue,
                           ),
                         ],
                       ),
@@ -313,60 +314,53 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     );
   }
 
-  void _showViewModeMenu(BuildContext context) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (BuildContext context) => CupertinoActionSheet(
-        title: const Text('Select View Mode'),
-        message: const Text('Choose how you want to visualize your captures'),
-        actions: <CupertinoActionSheetAction>[
-          CupertinoActionSheetAction(
-            child: const Text('Folders'),
-            onPressed: () {
-              setState(() => _viewMode = 1);
-              Navigator.pop(context);
-            },
+  Widget _buildAnimatedMenuButton({
+    required int index,
+    required bool isOpen,
+    required IconData icon,
+    required String label,
+    required double bottom,
+    required VoidCallback onPressed,
+  }) {
+    return AnimatedPositioned(
+      duration: Duration(milliseconds: 300 + (index * 60)),
+      curve: Curves.easeOutQuart,
+      bottom: isOpen ? bottom : 0,
+      right: 0,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: isOpen ? 1.0 : 0.0,
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 400),
+          scale: isOpen ? 1.0 : 0.4,
+          curve: Curves.easeOutBack,
+          child: _buildFloatingButton(
+            icon: icon, 
+            label: label, 
+            onPressed: onPressed,
+            color: CupertinoColors.activeBlue.withOpacity(0.9),
           ),
-          CupertinoActionSheetAction(
-            child: const Text('By Date'),
-            onPressed: () {
-              setState(() => _viewMode = 2);
-              Navigator.pop(context);
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Show All'),
-            onPressed: () {
-              setState(() => _viewMode = 0);
-              Navigator.pop(context);
-            },
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDefaultAction: true,
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: const Text('Cancel'),
         ),
       ),
     );
   }
 
-  String _getMonthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[month - 1];
-  }
-
-  Widget _buildSegmentLabel(String text, bool isSelected) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: isSelected ? Colors.white : (CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87),
+  Widget _buildFloatingButton({required IconData icon, required String label, required VoidCallback onPressed, Color color = CupertinoColors.activeBlue}) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+          ],
         ),
       ),
     );
@@ -375,7 +369,6 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   List<String> _getDateCategories() {
     final allItems = _groupedItems.values.expand((x) => x).toList();
     allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
     List<String> result = [];
     for (var item in allItems) {
       final dateStr = '${item.createdAt.day} ${_getMonthName(item.createdAt.month)} ${item.createdAt.year}';
@@ -386,19 +379,14 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
 
   List<Widget> _buildCategoryBranches() {
     if (_viewMode == 0) {
-      // "All" mode: Show all screenshots in a large circle around the hub
       List<Widget> widgets = [];
       final allItems = _groupedItems.values.expand((x) => x).toList();
       double centerX = 2500;
       double centerY = 2500;
-      double radius = 550;
-
       for (int i = 0; i < allItems.length; i++) {
-        // Golden Spiral for beautiful organic layout
         double goldenAngle = pi * (3 - sqrt(5)); 
         double theta = i * goldenAngle;
-        double r = 160 + (90 * sqrt(i)); // Expands outward
-
+        double r = 160 + (90 * sqrt(i));
         double itemX = centerX + r * cos(theta);
         double itemY = centerY + r * sin(theta);
         widgets.add(_buildDraggableItemNode(itemX, itemY, allItems[i]));
@@ -407,94 +395,78 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     }
 
     if (_viewMode == 2) {
-      // "Date" mode: Group items by actual date
       List<Widget> widgets = [];
       final allItems = _groupedItems.values.expand((x) => x).toList();
-      
-      // Sorting all items by date
       allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
       Map<String, List<ScreenshotItem>> dateGroups = {};
-
       for (var item in allItems) {
         final dateStr = '${item.createdAt.day} ${_getMonthName(item.createdAt.month)} ${item.createdAt.year}';
-        if (!dateGroups.containsKey(dateStr)) {
-          dateGroups[dateStr] = [];
-        }
+        if (!dateGroups.containsKey(dateStr)) dateGroups[dateStr] = [];
         dateGroups[dateStr]!.add(item);
       }
-
       final activeDates = dateGroups.keys.toList();
-
       double centerX = 2500;
       double centerY = 2500;
-        double radius = 600; // Increased for more space
+      double radius = 600;
+      for (int i = 0; i < activeDates.length; i++) {
+        double angle = (2 * pi * i) / (activeDates.isEmpty ? 1 : activeDates.length);
+        double defCatX = centerX + radius * cos(angle);
+        double defCatY = centerY + radius * sin(angle);
+        
+        // Actual position of the Date node
+        final catPos = _getNodePos('date_${activeDates[i]}', defCatX, defCatY);
 
-        for (int i = 0; i < activeDates.length; i++) {
-          double angle = (2 * pi * i) / activeDates.length;
-          double catX = centerX + radius * cos(angle);
-          double catY = centerY + radius * sin(angle);
-
-          widgets.add(_buildDraggableNode(catX, catY, activeDates[i], CupertinoColors.systemIndigo, 'date_${activeDates[i]}'));
-
-          final items = dateGroups[activeDates[i]]!;
+        widgets.add(_buildDraggableNode(defCatX, defCatY, activeDates[i], CupertinoColors.systemIndigo, 'date_${activeDates[i]}'));
+        final items = dateGroups[activeDates[i]]!;
+        for (int j = 0; j < items.length; j++) {
+          int layer = (j / 6).floor();
+          int indexInLayer = j % 6;
+          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) ? min(6, items.length - layer * 6) : 6;
+          double layerRadius = 220.0 + (layer * 140.0);
+          double arcSweep = pi / (1.2 + (layer * 0.2));
+          double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
+          if (itemsInThisLayer == 1) subAngle = angle;
           
-          for (int j = 0; j < items.length; j++) {
-            // Concentric circle layout for many items
-            int layer = (j / 6).floor();
-            int indexInLayer = j % 6;
-            int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) 
-                ? min(6, items.length - layer * 6) 
-                : 6;
-
-            double layerRadius = 220.0 + (layer * 140.0);
-            double arcSweep = pi / (1.2 + (layer * 0.2));
-            double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
-            if (itemsInThisLayer == 1) subAngle = angle;
-            
-            double itemX = catX + layerRadius * cos(subAngle);
-            double itemY = catY + layerRadius * sin(subAngle);
-            widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
-          }
+          // Position relative to actual Date node
+          double itemX = catPos.dx + layerRadius * cos(subAngle);
+          double itemY = catPos.dy + layerRadius * sin(subAngle);
+          widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
         }
+      }
       return widgets;
     }
 
-    // "Folder" mode (Current implementation)
     List<Widget> widgets = [];
     double centerX = 2500;
     double centerY = 2500;
-      double radius = 600; // Increased for more space
-
     for (int i = 0; i < _categories.length; i++) {
-      double angle = (2 * pi * i) / _categories.length;
-      // Staggered radii for dynamic constellation layout
+      double angle = (2 * pi * i) / (_categories.isEmpty ? 1 : _categories.length);
       double catRadius = 750.0 + (i % 2 == 0 ? 0 : 350.0);
-      double catX = centerX + catRadius * cos(angle);
-      double catY = centerY + catRadius * sin(angle);
+      double defCatX = centerX + catRadius * cos(angle);
+      double defCatY = centerY + catRadius * sin(angle);
+      
+      // Get the ACTUAL position of the folder node
+      final catPos = _getNodePos('cat_${_categories[i]}', defCatX, defCatY);
 
       final color = _getCategoryColor(i);
-      widgets.add(_buildDraggableNode(catX, catY, _categories[i], color, 'cat_${_categories[i]}'));
+      widgets.add(_buildDraggableNode(defCatX, defCatY, _categories[i], color, 'cat_${_categories[i]}'));
 
       final items = _groupedItems[_categories[i]] ?? [];
-      
       for (int j = 0; j < items.length; j++) {
-        // Planetary Rings layout
         int ring = 1;
         int capacity = 6;
         int currentItemCount = j;
-        
         while (currentItemCount >= capacity) {
           currentItemCount -= capacity;
           ring++;
           capacity = ring * 6;
         }
-        
         double ringRadius = 140.0 + (ring * 110.0);
         double theta = angle + (2 * pi * currentItemCount) / capacity + (ring * 0.3);
         
-        double itemX = catX + ringRadius * cos(theta);
-        double itemY = catY + ringRadius * sin(theta);
+        // Calculate item position relative to the ACTUAL folder position
+        double itemX = catPos.dx + ringRadius * cos(theta);
+        double itemY = catPos.dy + ringRadius * sin(theta);
         widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
       }
     }
@@ -504,80 +476,91 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   Widget _buildDraggableNode(double defX, double defY, String label, Color color, String id, {bool isCenter = false}) {
     final pos = _getNodePos(id, defX, defY);
     return Positioned(
-      left: pos.dx - (isCenter ? 70 : 55),
-      top: pos.dy - (isCenter ? 70 : 55),
+      left: pos.dx - (isCenter ? 75 : 60),
+      top: pos.dy - (isCenter ? 75 : 60),
       child: AnimatedBuilder(
         animation: _waveController,
         builder: (context, child) {
           final double wave = sin((_waveController.value * 2 * pi) + (id.hashCode % 10));
-          return Transform.translate(
-            offset: Offset(0, wave * 8),
-            child: child,
+          final double scale = isCenter ? (1.0 + (wave * 0.05)) : 1.0;
+          return Transform.scale(
+            scale: scale,
+            child: Transform.translate(
+              offset: Offset(0, wave * (isCenter ? 4 : 8)),
+              child: child,
+            ),
           );
         },
         child: GestureDetector(
           onPanUpdate: (details) {
-            _customOffsets[id] = pos + details.delta;
+            final key = 'mode_${_viewMode}_$id';
+            _customOffsets[key] = pos + details.delta;
             setState(() {}); 
           },
           onTap: () {
             if (!isCenter) {
-              final categoryName = label;
-              final items = _groupedItems[categoryName] ?? [];
               Navigator.push(
                 context,
                 CupertinoPageRoute(
                   builder: (context) => CategoryDetailScreen(
-                    category: categoryName,
-                    items: items,
+                    category: label,
+                    items: _groupedItems[label] ?? [],
                   ),
                 ),
               );
             }
           },
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: isCenter ? 140 : 110,
-                height: isCenter ? 140 : 110,
+                width: isCenter ? 150 : 120,
+                height: isCenter ? 150 : 120,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withOpacity(0.15),
                   shape: BoxShape.circle,
-                  border: Border.all(color: color.withOpacity(0.6), width: 2),
+                  border: Border.all(color: color.withOpacity(0.5), width: 3),
+                  boxShadow: [
+                    BoxShadow(color: color.withOpacity(0.2), blurRadius: 20, spreadRadius: 2),
+                  ],
                 ),
-                child: Container(
-                  margin: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    shape: BoxShape.circle,
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.25),
+                      shape: BoxShape.circle,
+                    ),
+                    child: isCenter 
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Image.asset('assets/snapi.png', fit: BoxFit.contain),
+                        )
+                      : Icon(CupertinoIcons.folder_fill, color: color, size: 40),
                   ),
-                  child: isCenter 
-                    ? Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Image.asset('assets/snapi.png', fit: BoxFit.contain),
-                      )
-                    : Icon(
-                        CupertinoIcons.folder_fill,
-                        color: color,
-                        size: 35,
-                      ),
                 ),
               ),
               if (label.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -592,8 +575,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   Widget _buildDraggableItemNode(double defX, double defY, ScreenshotItem item) {
     final pos = _getNodePos(item.id, defX, defY);
     return Positioned(
-      left: pos.dx - 50,
-      top: pos.dy - 60,
+      left: pos.dx - 55,
+      top: pos.dy - 65,
       child: AnimatedBuilder(
         animation: _waveController,
         builder: (context, child) {
@@ -605,7 +588,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         },
         child: GestureDetector(
           onPanUpdate: (details) {
-            _customOffsets[item.id] = pos + details.delta;
+            final key = 'mode_${_viewMode}_${item.id}';
+            _customOffsets[key] = pos + details.delta;
             setState(() {});
           },
           onTap: () => Navigator.push(
@@ -613,127 +597,56 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
             CupertinoPageRoute(builder: (context) => CaptureDetailsScreen(item: item)),
           ),
           child: Container(
-            width: 100,
-            height: 130,
-            padding: const EdgeInsets.all(5),
+            width: 110,
+            height: 140,
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: CupertinoColors.systemBackground.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.3)),
+              color: CupertinoColors.systemBackground.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.4)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5)),
+              ],
             ),
             child: Column(
               children: [
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.file(
-                          File(item.path),
-                          fit: BoxFit.cover,
-                          cacheWidth: 200,
-                          errorBuilder: (c, e, s) => Container(
-                            color: CupertinoColors.systemGrey6,
-                            child: const Icon(CupertinoIcons.photo, size: 30, color: CupertinoColors.systemGrey),
-                          ),
-                        ),
-                        // Overlay gradient for better text readability if needed
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, Colors.black.withOpacity(0.2)],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(item.path),
+                      fit: BoxFit.cover,
+                      cacheWidth: 200,
+                      errorBuilder: (c, e, s) => Container(
+                        color: CupertinoColors.systemGrey6,
+                        child: const Icon(CupertinoIcons.photo, size: 30, color: CupertinoColors.systemGrey),
+                      ),
                     ),
                   ),
                 ),
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  item.note.isEmpty ? 'Screenshot' : item.note,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.2,
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    item.note.isEmpty ? 'Capture' : item.note,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-            ],
+                const SizedBox(height: 4),
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 
-  Widget _buildAnimatedMenuButton({
-    required int index,
-    required bool isOpen,
-    required IconData icon,
-    required String label,
-    required double bottom,
-    required VoidCallback onPressed,
-  }) {
-    return AnimatedPositioned(
-      duration: Duration(milliseconds: 250 + (index * 50)),
-      curve: Curves.easeOutBack,
-      bottom: isOpen ? bottom : 0,
-      right: 0,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: isOpen ? 1.0 : 0.0,
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 300),
-          scale: isOpen ? 1.0 : 0.5,
-          curve: Curves.easeOutBack,
-          child: _buildSmallMenuButton(icon: icon, label: label, onPressed: onPressed),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmallMenuButton({required IconData icon, required String label, required VoidCallback onPressed}) {
-    return _buildFloatingButton(
-      icon: icon, 
-      label: label, 
-      onPressed: onPressed,
-      color: CupertinoColors.activeBlue.withOpacity(0.8),
-    );
-  }
-
-  Widget _buildFloatingButton({required IconData icon, required String label, required VoidCallback onPressed, Color color = CupertinoColors.activeBlue}) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(15),
-          // Removed glow shadows
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
+  String _getMonthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
   }
 
   Color _getCategoryColor(int index) {
@@ -756,11 +669,7 @@ class MindMapPainter extends CustomPainter {
   final Map<String, Offset> customOffsets;
   final int viewMode;
   final List<String> dateCategories;
-
-  String _getMonthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[month - 1];
-  }
+  final String Function(int) getMonthName;
 
   MindMapPainter({
     required this.categories, 
@@ -769,238 +678,102 @@ class MindMapPainter extends CustomPainter {
     required this.customOffsets,
     required this.viewMode,
     required this.dateCategories,
+    required this.getMonthName,
   });
 
   Offset _getPos(String id, double defX, double defY) {
-    return customOffsets[id] ?? Offset(defX, defY);
+    final key = 'mode_${viewMode}_$id';
+    return customOffsets[key] ?? Offset(defX, defY);
   }
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = CupertinoColors.activeBlue.withOpacity(0.3)
-      ..strokeWidth = 3.5 
+      ..color = CupertinoColors.activeBlue.withOpacity(isDark ? 0.2 : 0.3)
+      ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
       ..isAntiAlias = true;
 
     final double defCenterX = 2500.0;
     final double defCenterY = 2500.0;
     final centerPos = _getPos('root', defCenterX, defCenterY);
-    
-    final radius = 600.0; // Synced with builder
 
-    if (categories.isEmpty) return;
-
-    if (groupedItems.values.expand((x) => x).isEmpty) return;
-    
     if (viewMode == 0) {
-      // All mode: Draw lines directly from hub to all items
       final allItems = groupedItems.values.expand((x) => x).toList();
       for (int i = 0; i < allItems.length; i++) {
         double goldenAngle = pi * (3 - sqrt(5)); 
         double theta = i * goldenAngle;
         double r = 160 + (90 * sqrt(i));
-
-        double defItemX = defCenterX + r * cos(theta);
-        double defItemY = defCenterY + r * sin(theta);
-        final itemPos = _getPos(allItems[i].id, defItemX, defItemY);
-
-        Path path = Path();
-        path.moveTo(centerPos.dx, centerPos.dy);
-        double ctrlX = (centerPos.dx + itemPos.dx) / 2 + 30 * cos(theta + pi/2);
-        double ctrlY = (centerPos.dy + itemPos.dy) / 2 + 30 * sin(theta + pi/2);
-        path.quadraticBezierTo(ctrlX, ctrlY, itemPos.dx, itemPos.dy);
-        
-        // Organic Glow
-        paint.strokeWidth = 4.0;
-        paint.color = CupertinoColors.activeBlue.withOpacity(0.04);
-        paint.shader = null;
-        canvas.drawPath(path, paint);
-
-        paint.strokeWidth = 1.5;
-        paint.color = CupertinoColors.activeBlue.withOpacity(0.15);
-        canvas.drawPath(path, paint);
+        final targetPos = _getPos(allItems[i].id, defCenterX + r * cos(theta), defCenterY + r * sin(theta));
+        _drawOrganicCurve(canvas, centerPos, targetPos, paint);
       }
     } else if (viewMode == 2) {
-      // Date mode
-      final allItems = groupedItems.values.expand((x) => x).toList();
-      allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      
-      Map<String, List<ScreenshotItem>> dateGroups = {};
-      for (var item in allItems) {
-        final dateStr = '${item.createdAt.day} ${_getMonthName(item.createdAt.month)} ${item.createdAt.year}';
-        if (!dateGroups.containsKey(dateStr)) dateGroups[dateStr] = [];
-        dateGroups[dateStr]!.add(item);
-      }
-
       for (int i = 0; i < dateCategories.length; i++) {
-        String label = dateCategories[i];
-        double angle = (2 * pi * i) / dateCategories.length;
-        double defCatX = defCenterX + radius * cos(angle);
-        double defCatY = defCenterY + radius * sin(angle);
-        final catPos = _getPos('date_$label', defCatX, defCatY);
+        double angle = (2 * pi * i) / (dateCategories.isEmpty ? 1 : dateCategories.length);
+        final catPos = _getPos('date_${dateCategories[i]}', defCenterX + 600 * cos(angle), defCenterY + 600 * sin(angle));
+        _drawOrganicCurve(canvas, centerPos, catPos, paint);
 
-        Path path = Path();
-        path.moveTo(centerPos.dx, centerPos.dy);
-        double ctrlX = (centerPos.dx + catPos.dx) / 2 + 60 * cos(angle + pi/2);
-        double ctrlY = (centerPos.dy + catPos.dy) / 2 + 60 * sin(angle + pi/2);
-        path.quadraticBezierTo(ctrlX, ctrlY, catPos.dx, catPos.dy);
-        
-        // Glow effect for Date branches
-        paint.strokeWidth = 6.0;
-        paint.color = CupertinoColors.systemIndigo.withOpacity(0.08);
-        paint.shader = null;
-        canvas.drawPath(path, paint);
+        final items = groupedItems.values.expand((x) => x).where((item) {
+          final dateStr = '${item.createdAt.day} ${getMonthName(item.createdAt.month)} ${item.createdAt.year}';
+          return dateStr == dateCategories[i];
+        }).toList();
 
-        paint.strokeWidth = 2.5;
-        final indigoGradient = LinearGradient(
-          colors: [CupertinoColors.systemIndigo.withOpacity(0.2), CupertinoColors.systemIndigo.withOpacity(0.7)],
-        ).createShader(Rect.fromPoints(centerPos, catPos));
-        paint.shader = indigoGradient;
-        canvas.drawPath(path, paint);
-
-        final items = dateGroups[label] ?? [];
-        
         for (int j = 0; j < items.length; j++) {
           int layer = (j / 6).floor();
           int indexInLayer = j % 6;
-          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) 
-                ? min(6, items.length - layer * 6) 
-                : 6;
-
+          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) ? min(6, items.length - layer * 6) : 6;
           double layerRadius = 220.0 + (layer * 140.0);
           double arcSweep = pi / (1.2 + (layer * 0.2));
           double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
           if (itemsInThisLayer == 1) subAngle = angle;
           
-          double defItemX = defCatX + layerRadius * cos(subAngle);
-          double defItemY = defCatY + layerRadius * sin(subAngle);
-          final itemPos = _getPos(items[j].id, defItemX, defItemY);
-          
-          Path subPath = Path();
-          subPath.moveTo(catPos.dx, catPos.dy);
-          double sCtrlX = (catPos.dx + itemPos.dx) / 2 + 40 * cos(subAngle + pi/2);
-          double sCtrlY = (catPos.dy + itemPos.dy) / 2 + 40 * sin(subAngle + pi/2);
-          subPath.quadraticBezierTo(sCtrlX, sCtrlY, itemPos.dx, itemPos.dy);
-          
-          paint.shader = null;
-          paint.strokeWidth = 1.5;
-          paint.color = CupertinoColors.systemIndigo.withOpacity(0.4);
-          canvas.drawPath(subPath, paint);
+          final itemPos = _getPos(items[j].id, catPos.dx + layerRadius * cos(subAngle), catPos.dy + layerRadius * sin(subAngle));
+          _drawOrganicCurve(canvas, catPos, itemPos, paint);
         }
       }
     } else {
-      // Folder mode
       for (int i = 0; i < categories.length; i++) {
-        double angle = (2 * pi * i) / categories.length;
+        double angle = (2 * pi * i) / (categories.isEmpty ? 1 : categories.length);
         double catRadius = 750.0 + (i % 2 == 0 ? 0 : 350.0);
-        double defCatX = defCenterX + catRadius * cos(angle);
-        double defCatY = defCenterY + catRadius * sin(angle);
-        final catPos = _getPos('cat_${categories[i]}', defCatX, defCatY);
-        // Draw curved line from Center to Category with a "Glow" effect
-        Path path = Path();
-        path.moveTo(centerPos.dx, centerPos.dy);
-        double ctrlX = (centerPos.dx + catPos.dx) / 2 + 60 * cos(angle + pi/2);
-        double ctrlY = (centerPos.dy + catPos.dy) / 2 + 60 * sin(angle + pi/2);
-        path.quadraticBezierTo(ctrlX, ctrlY, catPos.dx, catPos.dy);
-        
-        // Outer Glow
-        paint.strokeWidth = 6.0;
-        paint.color = CupertinoColors.activeBlue.withOpacity(isDark ? 0.05 : 0.03);
-        paint.shader = null;
-        canvas.drawPath(path, paint);
-
-        // Inner Line
-        paint.strokeWidth = 2.5;
-        final lineGradient = LinearGradient(
-          colors: [
-            CupertinoColors.activeBlue.withOpacity(isDark ? 0.2 : 0.3), 
-            CupertinoColors.activeBlue.withOpacity(isDark ? 0.8 : 0.9)
-          ],
-        ).createShader(Rect.fromPoints(centerPos, catPos));
-        paint.shader = lineGradient;
-        canvas.drawPath(path, paint);
+        final catPos = _getPos('cat_${categories[i]}', defCenterX + catRadius * cos(angle), defCenterY + catRadius * sin(angle));
+        _drawOrganicCurve(canvas, centerPos, catPos, paint);
 
         final items = groupedItems[categories[i]] ?? [];
-        
         for (int j = 0; j < items.length; j++) {
           int ring = 1;
           int capacity = 6;
           int currentItemCount = j;
-          
           while (currentItemCount >= capacity) {
             currentItemCount -= capacity;
             ring++;
             capacity = ring * 6;
           }
-          
           double ringRadius = 140.0 + (ring * 110.0);
           double theta = angle + (2 * pi * currentItemCount) / capacity + (ring * 0.3);
-          
-          double defItemX = defCatX + ringRadius * cos(theta);
-          double defItemY = defCatY + ringRadius * sin(theta);
-          final itemPos = _getPos(items[j].id, defItemX, defItemY);
-          
-          Path subPath = Path();
-          subPath.moveTo(catPos.dx, catPos.dy);
-          double sCtrlX = (catPos.dx + itemPos.dx) / 2 + 40 * cos(theta + pi/2);
-          double sCtrlY = (catPos.dy + itemPos.dy) / 2 + 40 * sin(theta + pi/2);
-          subPath.quadraticBezierTo(sCtrlX, sCtrlY, itemPos.dx, itemPos.dy);
-          
-          paint.shader = null;
-          paint.strokeWidth = 1.5;
-          paint.color = CupertinoColors.activeBlue.withOpacity(isDark ? 0.25 : 0.35);
-          canvas.drawPath(subPath, paint);
+          final itemPos = _getPos(items[j].id, catPos.dx + ringRadius * cos(theta), catPos.dy + ringRadius * sin(theta));
+          _drawOrganicCurve(canvas, catPos, itemPos, paint);
         }
       }
     }
   }
 
+  void _drawOrganicCurve(Canvas canvas, Offset start, Offset end, Paint paint) {
+    final path = Path();
+    path.moveTo(start.dx, start.dy);
+    
+    final double dist = (end - start).distance;
+    final double controlPointDist = dist * 0.45;
+    final Offset direction = (end - start) / (dist == 0 ? 1 : dist);
+    final Offset normal = Offset(-direction.dy, direction.dx);
+    
+    final cp1 = start + direction * controlPointDist + normal * (controlPointDist * 0.25);
+    final cp2 = end - direction * controlPointDist - normal * (controlPointDist * 0.25);
+    
+    path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, end.dx, end.dy);
+    canvas.drawPath(path, paint);
+  }
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-class GridPainter extends CustomPainter {
-  final bool isDark;
-  GridPainter({required this.isDark});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 1. Draw an ultra-subtle radial glow centered at the hub (2500, 2500)
-    final Offset hubCenter = Offset(size.width / 2, size.height / 2);
-    final Paint glowPaint = Paint()
-      ..shader = RadialGradient(
-        center: Alignment.center,
-        colors: [
-          (isDark ? CupertinoColors.activeBlue : CupertinoColors.activeBlue).withOpacity(isDark ? 0.08 : 0.06),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(center: hubCenter, radius: 1800));
-    
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), glowPaint);
-
-    // 2. Draw Ultra-faint Dot Grid
-    final Paint dotPaint = Paint()
-      ..color = (isDark ? CupertinoColors.white : CupertinoColors.activeBlue).withOpacity(isDark ? 0.08 : 0.04)
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 1.5;
-
-    const double spacing = 100.0; // Larger spacing for a cleaner look
-
-    List<Offset> points = [];
-    for (double x = 0; x <= size.width; x += spacing) {
-      for (double y = 0; y <= size.height; y += spacing) {
-        points.add(Offset(x, y));
-      }
-    }
-    
-    canvas.drawPoints(PointMode.points, points, dotPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant GridPainter oldDelegate) {
-    return oldDelegate.isDark != isDark;
-  }
 }
