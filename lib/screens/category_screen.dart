@@ -16,7 +16,8 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   Map<String, List<ScreenshotItem>> _groupedItems = {};
-  List<String> _allCategories = ['Uncategorized', 'Work', 'Personal', 'Social'];
+  List<String> _allCategories = ['Uncategorized', 'Work', 'Personal'];
+
 
   @override
   void initState() {
@@ -49,7 +50,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (mounted) {
       setState(() {
         if (saved == null || saved.isEmpty) {
-          _allCategories = ['Uncategorized', 'Work', 'Personal', 'Social'];
+          _allCategories = ['Uncategorized', 'Work', 'Personal'];
+
         } else {
           // Always ensure Uncategorized is present
           if (!saved.contains('Uncategorized')) {

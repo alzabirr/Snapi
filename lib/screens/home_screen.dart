@@ -24,13 +24,16 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Timer _instructionTimer;
   final List<String> _instructions = [
     "Hi! I am Snapi",
-    "Take any screenshot!",
-    "I'll detect it!",
-    "Adding Voice Notes",
-    "Smart Organizing",
-    "SNAPI HUB View",
-    "Try it now!",
+    "Organize screenshot photos",
+    "Smart Auto-Organize",
+    "Extract text instantly",
+    "Add Voice notes",
+    "Explore your Visual ",
+    "Let's get started!",
   ];
+
+
+
 
   @override
   void initState() {
@@ -190,14 +193,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     decoration: BoxDecoration(
                                       color: CupertinoColors.activeBlue,
                                       borderRadius: BorderRadius.circular(18),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: CupertinoColors.activeBlue.withOpacity(0.3),
-                                          blurRadius: 15,
-                                          offset: const Offset(0, 5),
-                                        ),
-                                      ],
                                     ),
+
                                     child: Text(
                                       _instructions[_instructionIndex],
                                       style: const TextStyle(

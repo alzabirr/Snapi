@@ -30,10 +30,12 @@ class AIService {
       'discount': 1.5, 'price': 1.5, 'shopping': 2.0,
     },
     'Education': {
-      'exam': 2.0, 'result': 2.0, 'assignment': 2.0, 'university': 2.0, 'class': 1.5,
-      'lecture': 1.5, 'student': 1.5, 'study': 2.5, 'quiz': 2.0, 'homework': 2.5,
-      'syllabus': 2.0, 'academic': 2.0, 'tutorial': 2.0, 'course': 2.0,
+      'exam': 2.5, 'result': 2.0, 'assignment': 3.0, 'university': 2.0, 'class': 2.0,
+      'lecture': 2.0, 'student': 1.5, 'study': 3.0, 'quiz': 2.5, 'homework': 3.0,
+      'syllabus': 2.5, 'academic': 2.0, 'tutorial': 2.5, 'course': 2.0,
+      'pdf': 2.0, 'notes': 2.5, 'book': 2.0, 'school': 2.0, 'college': 2.0,
     },
+
 
     'Work': {
       'meeting': 2.0, 'office': 1.5, 'project': 1.5, 'salary': 2.0, 'invoice': 2.0, 'task': 1.5,
