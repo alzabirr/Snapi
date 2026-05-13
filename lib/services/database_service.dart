@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/screenshot_item.dart';
 
 class DatabaseService {
@@ -22,6 +23,24 @@ class DatabaseService {
     }
     if (!Hive.isBoxOpen(deletedBoxName)) {
       await Hive.openBox<ScreenshotItem>(deletedBoxName);
+    }
+
+    // Cleanup old default categories from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final userCats = prefs.getStringList('user_categories');
+    if (userCats != null) {
+      bool changed = false;
+      if (userCats.contains('Work')) {
+        userCats.remove('Work');
+        changed = true;
+      }
+      if (userCats.contains('Social')) {
+        userCats.remove('Social');
+        changed = true;
+      }
+      if (changed) {
+        await prefs.setStringList('user_categories', userCats);
+      }
     }
   }
 
@@ -94,11 +113,9 @@ class DatabaseService {
 
   static List<String> getCategories() {
     final categories = box.values.map((item) => item.category).toSet().toList();
-    categories.removeWhere((c) => c.isEmpty || c == 'General');
+    categories.removeWhere((c) => c.isEmpty || c == 'General' || c == 'Work' || c == 'Social');
     if (!categories.contains('Uncategorized')) categories.add('Uncategorized');
-    if (!categories.contains('Work')) categories.add('Work');
     if (!categories.contains('Personal')) categories.add('Personal');
-    if (!categories.contains('Social')) categories.add('Social');
     return categories;
   }
 
@@ -114,5 +131,11 @@ class DatabaseService {
     if (updates.isNotEmpty) {
       await box.putAll(updates);
     }
+  }
+
+  static Future<void> updateItemCategory(ScreenshotItem item, String newCategory) async {
+    item.category = newCategory;
+    await item.save();
+    categoryNotifier.value++;
   }
 }

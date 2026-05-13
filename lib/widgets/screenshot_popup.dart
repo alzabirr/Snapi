@@ -30,7 +30,7 @@ class ScreenshotPopup extends StatefulWidget {
 class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProviderStateMixin {
   late final TextEditingController _noteController;
   String _selectedCategory = 'Uncategorized';
-  List<String> _categories = ['Uncategorized', 'Work', 'Personal', 'Social'];
+  List<String> _categories = ['Uncategorized', 'Personal'];
   bool _isListening = false;
   bool _isAnalyzingAI = false;
   String? _suggestedCategory;

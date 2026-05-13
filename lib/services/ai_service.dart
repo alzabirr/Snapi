@@ -253,6 +253,9 @@ class AIService {
       'animal': 3.0, 'pets': 2.5, 'cat': 5.0, 'kitten': 4.5, 'kitty': 4.0, 'feline': 4.0, 'dog': 3.0, 'puppy': 3.0, 'canine': 3.0,
       'bird': 2.0, 'wildlife': 2.5, 'veterinary': 2.5
     },
+    'Work': {
+      'meeting': 2.0, 'office': 1.5, 'project': 1.5, 'salary': 2.0, 'invoice': 2.0, 'task': 1.5, 'business': 1.5, 'professional': 1.5
+    },
     'Supply Chain': {
       'inventory': 2.5, 'procurement': 3.0, 'logistics': 3.0, 'warehousing': 2.5, 'supply chain': 3.0
     }
@@ -395,7 +398,15 @@ class AIService {
   static Future<void> ensureCategoryExists(String category) async {
     if (category == 'Other' || category == 'Uncategorized') return;
     final prefs = await SharedPreferences.getInstance();
-    final categories = prefs.getStringList('user_categories') ?? ['Uncategorized', 'Work', 'Personal'];
+    final categories = prefs.getStringList('user_categories') ?? ['Uncategorized', 'Personal'];
+    if (categories.contains('Work')) {
+      categories.remove('Work');
+      await prefs.setStringList('user_categories', categories);
+    }
+    if (categories.contains('Social')) {
+      categories.remove('Social');
+      await prefs.setStringList('user_categories', categories);
+    }
 
     if (!categories.contains(category)) {
       categories.add(category);

@@ -16,7 +16,7 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   Map<String, List<ScreenshotItem>> _groupedItems = {};
-  List<String> _allCategories = ['Uncategorized', 'Work', 'Personal'];
+  List<String> _allCategories = ['Uncategorized', 'Personal'];
 
 
   @override
@@ -50,7 +50,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (mounted) {
       setState(() {
         if (saved == null || saved.isEmpty) {
-          _allCategories = ['Uncategorized', 'Work', 'Personal'];
+          _allCategories = ['Uncategorized', 'Personal'];
 
         } else {
           // Always ensure Uncategorized is present
@@ -83,7 +83,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     bool categoriesUpdated = false;
     for (var item in allItems) {
-      final cat = item.category.isEmpty ? 'Uncategorized' : item.category;
+      String cat = item.category.isEmpty ? 'Uncategorized' : item.category;
+      
+      // Forcefully remove 'Work' and 'Social' if they exist in DB
+      if (cat == 'Work' || cat == 'Social') {
+        cat = 'Uncategorized';
+      }
       
       // If a restored image has a category that was deleted, bring the folder back
       if (!_allCategories.contains(cat)) {

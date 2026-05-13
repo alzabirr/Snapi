@@ -8,6 +8,7 @@ import '../services/database_service.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/services.dart';
 import 'capture_details_screen.dart';
 import 'category_screen.dart';
 
@@ -26,14 +27,9 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   bool _isLoading = true;
   bool _initialCentered = false;
   final Map<String, Offset> _customOffsets = {};
-  int _viewMode = 1; // 0 for All, 1 for Folder, 2 for Date
+  int _viewMode = 1; // 0: Overview, 1: Clusters, 2: Timeline, 3: Network
   bool _isMenuOpen = false;
-  Timer? _refreshTimer;
-
-  Offset _getNodePos(String id, double defX, double defY) {
-    final key = 'mode_${_viewMode}_$id';
-    return _customOffsets[key] ?? Offset(defX, defY);
-  }
+  String? _draggedId;
 
   @override
   void initState() {
@@ -42,7 +38,6 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     _transformationController = TransformationController();
     _loadData();
     
-    // Real-time updates when database changes
     DatabaseService.box.listenable().addListener(_onDatabaseChange);
     DatabaseService.categoryNotifier.addListener(_onDatabaseChange);
 
@@ -75,27 +70,20 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
 
   void _centerView(Size viewportSize) {
     if (viewportSize.width == 0 || viewportSize.height == 0) return;
-    
-    // Reduced zoom level for better overview
     const double scale = 0.45;
-    
-    // The canvas is now 5000x5000, center node is at (2500, 2500).
-    final tx = (viewportSize.width / 2) - (2500.0 * scale);
-    final ty = (viewportSize.height / 2) - (2500.0 * scale);
-
-    _transformationController.value = Matrix4.identity()
-      ..translate(tx, ty)
-      ..scale(scale);
+    final tx = (viewportSize.width / 2) - (4000.0 * scale);
+    final ty = (viewportSize.height / 2) - (4000.0 * scale);
+    _transformationController.value = Matrix4.identity()..translate(tx, ty)..scale(scale);
   }
 
   Future<void> _loadData({bool isAutoRefresh = false}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       var cats = prefs.getStringList('user_categories');
+      if (cats == null || cats.isEmpty) cats = ['Uncategorized', 'Personal'];
       
-      if (cats == null || cats.isEmpty) {
-        cats = ['Uncategorized', 'Work', 'Personal', 'Social'];
-      }
+      // Ensure uniqueness
+      cats = cats.toSet().toList();
       
       final allItems = DatabaseService.getAllItems();
       final Map<String, List<ScreenshotItem>> grouped = {};
@@ -109,202 +97,121 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
           _groupedItems = grouped;
           _isLoading = false;
         });
-        if (!isAutoRefresh) {
-          _initialCentered = false;
-        }
+        if (!isAutoRefresh) _initialCentered = false;
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Offset _getNodePos(String id, double defX, double defY) {
+    final key = 'mode_${_viewMode}_$id';
+    return _customOffsets[key] ?? Offset(defX, defY);
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CupertinoActivityIndicator());
-
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    final hasItems = _groupedItems.values.any((list) => list.isNotEmpty);
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
       navigationBar: CupertinoNavigationBar(
-        middle: Text(
-          'VISUAL',
-          style: TextStyle(
-            color: isDark ? CupertinoColors.white : CupertinoColors.black,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-          ),
-        ),
-        backgroundColor: (isDark ? CupertinoColors.black : CupertinoColors.white).withOpacity(0.8),
+        middle: Text('VISUAL', style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w800)),
+        backgroundColor: (isDark ? Colors.black : Colors.white).withOpacity(0.8),
         border: null,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final size = Size(constraints.maxWidth, constraints.maxHeight);
-          
-          // Auto-center on first layout or after data reload
           if (!_initialCentered) {
             _initialCentered = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _centerView(size);
-            });
+            WidgetsBinding.instance.addPostFrameCallback((_) => _centerView(Size(constraints.maxWidth, constraints.maxHeight)));
           }
-          
           return Stack(
             children: [
-              // Background Gradient
-              Positioned.fill(
-                child: Container(
-                  color: isDark ? CupertinoColors.black : CupertinoColors.white,
-                ),
-              ),
-              // Background Dim when menu is open
               if (_isMenuOpen)
                 Positioned.fill(
                   child: GestureDetector(
                     onTap: () => setState(() => _isMenuOpen = false),
-                    child: Container(
-                      color: Colors.black.withOpacity(0.3),
-                    ),
+                    child: Container(color: Colors.black.withOpacity(0.3)),
                   ),
                 ),
               InteractiveViewer(
                 transformationController: _transformationController,
-                boundaryMargin: const EdgeInsets.all(2500),
+                boundaryMargin: const EdgeInsets.all(4000),
                 minScale: 0.05,
                 maxScale: 2.5,
                 constrained: false, 
                 child: SizedBox(
-                  width: 5000,
-                  height: 5000,
+                  width: 8000,
+                  height: 8000,
                   child: RepaintBoundary(
                     child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        // Clean minimalist background
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: MindMapPainter(
-                              categories: _categories,
-                              groupedItems: _groupedItems,
-                              isDark: isDark,
-                              customOffsets: _customOffsets,
-                              viewMode: _viewMode,
-                              dateCategories: _getDateCategories(),
-                              getMonthName: _getMonthName,
+                        ...(() {
+                          final List<Widget> backgroundAndLines = [
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: MindMapPainter(
+                                  categories: _categories,
+                                  groupedItems: _groupedItems,
+                                  isDark: isDark,
+                                  customOffsets: _customOffsets,
+                                  viewMode: _viewMode,
+                                  dateCategories: _getDateCategories(),
+                                  getMonthName: _getMonthName,
+                                  canvasSize: 8000,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        _buildDraggableNode(2500, 2500, '', CupertinoColors.activeBlue, 'root', isCenter: true),
-                        ..._buildCategoryBranches(),
+                          ];
+
+                          final List<Widget> nodes = [
+                            _buildDraggableNode(4000, 4000, '', CupertinoColors.activeBlue, 'root', isCenter: true),
+                            ..._buildCategoryBranches(),
+                          ];
+
+                          if (_draggedId != null) {
+                            Widget? draggedWidget;
+                            final List<Widget> otherNodes = [];
+                            
+                            for (var node in nodes) {
+                              if (node.key == ValueKey(_draggedId)) {
+                                draggedWidget = node;
+                              } else {
+                                otherNodes.add(node);
+                              }
+                            }
+                            
+                            return [...backgroundAndLines, ...otherNodes, if (draggedWidget != null) draggedWidget];
+                          }
+                          
+                          return [...backgroundAndLines, ...nodes];
+                        })(),
                       ],
                     ),
                   ),
                 ),
               ),
-              // Glassmorphic Instruction Card
+              
+              // Instruction
               Positioned(
-                top: 20,
-                left: 20,
-                right: 20,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: (isDark ? Colors.black : Colors.white).withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.2)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Explore your visual catalog. Drag nodes to move.',
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                top: 20, left: 20, right: 20,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _draggedId != null ? 0.0 : 1.0,
+                  child: _buildInstructionCard(isDark),
                 ),
               ),
-              // Floating Action Buttons (Redesigned)
+
+              // Floating Menu
               Positioned(
-                bottom: 110,
-                right: 20,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 250,
-                      width: 160,
-                      child: Stack(
-                        alignment: Alignment.bottomRight,
-                        clipBehavior: Clip.none,
-                        children: [
-                          _buildAnimatedMenuButton(
-                            index: 2,
-                            isOpen: _isMenuOpen,
-                            icon: CupertinoIcons.square_grid_2x2_fill,
-                            label: 'Overview',
-                            bottom: 185,
-                            onPressed: () {
-                              setState(() {
-                                _viewMode = 0;
-                                _isMenuOpen = false;
-                              });
-                            },
-                          ),
-                          _buildAnimatedMenuButton(
-                            index: 1,
-                            isOpen: _isMenuOpen,
-                            icon: CupertinoIcons.time_solid,
-                            label: 'Timeline',
-                            bottom: 125,
-                            onPressed: () {
-                              setState(() {
-                                _viewMode = 2;
-                                _isMenuOpen = false;
-                              });
-                            },
-                          ),
-                          _buildAnimatedMenuButton(
-                            index: 0,
-                            isOpen: _isMenuOpen,
-                            icon: CupertinoIcons.folder_solid,
-                            label: 'Clusters',
-                            bottom: 65,
-                            onPressed: () {
-                              setState(() {
-                                _viewMode = 1;
-                                _isMenuOpen = false;
-                              });
-                            },
-                          ),
-                          _buildFloatingButton(
-                            icon: _isMenuOpen ? CupertinoIcons.xmark : CupertinoIcons.slider_horizontal_3,
-                            label: 'Layout',
-                            onPressed: () => setState(() => _isMenuOpen = !_isMenuOpen),
-                            color: CupertinoColors.activeBlue,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                bottom: 110, right: 20,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _draggedId != null ? 0.0 : 1.0,
+                  child: _buildFloatingMenu(),
                 ),
               ),
             ],
@@ -314,160 +221,101 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     );
   }
 
-  Widget _buildAnimatedMenuButton({
-    required int index,
-    required bool isOpen,
-    required IconData icon,
-    required String label,
-    required double bottom,
-    required VoidCallback onPressed,
-  }) {
-    return AnimatedPositioned(
-      duration: Duration(milliseconds: 300 + (index * 60)),
-      curve: Curves.easeOutQuart,
-      bottom: isOpen ? bottom : 0,
-      right: 0,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: isOpen ? 1.0 : 0.0,
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 400),
-          scale: isOpen ? 1.0 : 0.4,
-          curve: Curves.easeOutBack,
-          child: _buildFloatingButton(
-            icon: icon, 
-            label: label, 
-            onPressed: onPressed,
-            color: CupertinoColors.activeBlue.withOpacity(0.9),
+  Widget _buildInstructionCard(bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.black : Colors.white).withOpacity(0.4),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _viewMode == 3 ? 'Social Network Graph enabled. Drag nodes freely.' : 'Explore your visual catalog. Drag nodes to move.',
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildFloatingButton({required IconData icon, required String label, required VoidCallback onPressed, Color color = CupertinoColors.activeBlue}) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(18),
+  Widget _buildFloatingMenu() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 250,
+          width: 160,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              _buildAnimatedMenuButton(index: 2, isOpen: _isMenuOpen, icon: CupertinoIcons.square_grid_2x2_fill, label: 'Overview', bottom: 185, onPressed: () => setState(() { _viewMode = 0; _isMenuOpen = false; })),
+              _buildAnimatedMenuButton(index: 1, isOpen: _isMenuOpen, icon: CupertinoIcons.time_solid, label: 'Timeline', bottom: 125, onPressed: () => setState(() { _viewMode = 2; _isMenuOpen = false; })),
+              _buildAnimatedMenuButton(index: 0, isOpen: _isMenuOpen, icon: CupertinoIcons.folder_solid, label: 'Clusters', bottom: 65, onPressed: () => setState(() { _viewMode = 1; _isMenuOpen = false; })),
+              _buildFloatingButton(icon: _isMenuOpen ? CupertinoIcons.xmark : CupertinoIcons.slider_horizontal_3, label: 'Layout', onPressed: () => setState(() => _isMenuOpen = !_isMenuOpen)),
+            ],
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-          ],
-        ),
-      ),
+      ],
     );
   }
 
-  List<String> _getDateCategories() {
-    final allItems = _groupedItems.values.expand((x) => x).toList();
-    allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    List<String> result = [];
-    for (var item in allItems) {
-      final dateStr = '${item.createdAt.day} ${_getMonthName(item.createdAt.month)} ${item.createdAt.year}';
-      if (!result.contains(dateStr)) result.add(dateStr);
-    }
-    return result;
-  }
-
   List<Widget> _buildCategoryBranches() {
-    if (_viewMode == 0) {
-      List<Widget> widgets = [];
-      final allItems = _groupedItems.values.expand((x) => x).toList();
-      double centerX = 2500;
-      double centerY = 2500;
-      for (int i = 0; i < allItems.length; i++) {
-        double goldenAngle = pi * (3 - sqrt(5)); 
-        double theta = i * goldenAngle;
-        double r = 160 + (90 * sqrt(i));
-        double itemX = centerX + r * cos(theta);
-        double itemY = centerY + r * sin(theta);
-        widgets.add(_buildDraggableItemNode(itemX, itemY, allItems[i]));
-      }
-      return widgets;
-    }
-
-    if (_viewMode == 2) {
-      List<Widget> widgets = [];
-      final allItems = _groupedItems.values.expand((x) => x).toList();
-      allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      Map<String, List<ScreenshotItem>> dateGroups = {};
-      for (var item in allItems) {
-        final dateStr = '${item.createdAt.day} ${_getMonthName(item.createdAt.month)} ${item.createdAt.year}';
-        if (!dateGroups.containsKey(dateStr)) dateGroups[dateStr] = [];
-        dateGroups[dateStr]!.add(item);
-      }
-      final activeDates = dateGroups.keys.toList();
-      double centerX = 2500;
-      double centerY = 2500;
-      double radius = 600;
-      for (int i = 0; i < activeDates.length; i++) {
-        double angle = (2 * pi * i) / (activeDates.isEmpty ? 1 : activeDates.length);
-        double defCatX = centerX + radius * cos(angle);
-        double defCatY = centerY + radius * sin(angle);
-        
-        // Actual position of the Date node
-        final catPos = _getNodePos('date_${activeDates[i]}', defCatX, defCatY);
-
-        widgets.add(_buildDraggableNode(defCatX, defCatY, activeDates[i], CupertinoColors.systemIndigo, 'date_${activeDates[i]}'));
-        final items = dateGroups[activeDates[i]]!;
-        for (int j = 0; j < items.length; j++) {
-          int layer = (j / 6).floor();
-          int indexInLayer = j % 6;
-          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) ? min(6, items.length - layer * 6) : 6;
-          double layerRadius = 220.0 + (layer * 140.0);
-          double arcSweep = pi / (1.2 + (layer * 0.2));
-          double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
-          if (itemsInThisLayer == 1) subAngle = angle;
-          
-          // Position relative to actual Date node
-          double itemX = catPos.dx + layerRadius * cos(subAngle);
-          double itemY = catPos.dy + layerRadius * sin(subAngle);
-          widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
-        }
-      }
-      return widgets;
-    }
-
     List<Widget> widgets = [];
-    double centerX = 2500;
-    double centerY = 2500;
-    for (int i = 0; i < _categories.length; i++) {
-      double angle = (2 * pi * i) / (_categories.isEmpty ? 1 : _categories.length);
-      double catRadius = 750.0 + (i % 2 == 0 ? 0 : 350.0);
-      double defCatX = centerX + catRadius * cos(angle);
-      double defCatY = centerY + catRadius * sin(angle);
-      
-      // Get the ACTUAL position of the folder node
-      final catPos = _getNodePos('cat_${_categories[i]}', defCatX, defCatY);
+    double centerX = 4000;
+    double centerY = 4000;
 
-      final color = _getCategoryColor(i);
-      widgets.add(_buildDraggableNode(defCatX, defCatY, _categories[i], color, 'cat_${_categories[i]}'));
-
-      final items = _groupedItems[_categories[i]] ?? [];
-      for (int j = 0; j < items.length; j++) {
-        int ring = 1;
-        int capacity = 6;
-        int currentItemCount = j;
-        while (currentItemCount >= capacity) {
-          currentItemCount -= capacity;
-          ring++;
-          capacity = ring * 6;
+    if (_viewMode == 0) {
+      final allItems = _groupedItems.values.expand((x) => x).toList();
+      for (int i = 0; i < allItems.length; i++) {
+        double theta = i * (pi * (3 - sqrt(5))); 
+        double r = 160 + (90 * sqrt(i));
+        widgets.add(_buildDraggableItemNode(centerX + r * cos(theta), centerY + r * sin(theta), allItems[i]));
+      }
+    } else if (_viewMode == 2) {
+      final dateCategories = _getDateCategories();
+      final double total = dateCategories.isEmpty ? 1.0 : dateCategories.length.toDouble();
+      for (int i = 0; i < dateCategories.length; i++) {
+        double angle = (2 * pi * i) / total;
+        double defCatX = centerX + 600 * cos(angle);
+        double defCatY = centerY + 600 * sin(angle);
+        final String nodeId = 'date_${dateCategories[i]}_$i';
+        widgets.add(_buildDraggableNode(defCatX, defCatY, dateCategories[i], CupertinoColors.systemIndigo, nodeId));
+        final items = _groupedItems.values.expand((x) => x).where((it) => '${it.createdAt.day} ${_getMonthName(it.createdAt.month)} ${it.createdAt.year}' == dateCategories[i]).toList();
+        final catPos = _getNodePos(nodeId, defCatX, defCatY);
+        for (int j = 0; j < items.length; j++) {
+          double r = 220.0 + (j / 6).floor() * 140.0;
+          double subAngle = angle - (pi/1.5) / 2 + (pi/1.5) * (j%6) / 5;
+          widgets.add(_buildDraggableItemNode(catPos.dx + r * cos(subAngle), catPos.dy + r * sin(subAngle), items[j]));
         }
-        double ringRadius = 140.0 + (ring * 110.0);
-        double theta = angle + (2 * pi * currentItemCount) / capacity + (ring * 0.3);
-        
-        // Calculate item position relative to the ACTUAL folder position
-        double itemX = catPos.dx + ringRadius * cos(theta);
-        double itemY = catPos.dy + ringRadius * sin(theta);
-        widgets.add(_buildDraggableItemNode(itemX, itemY, items[j]));
+      }
+    } else {
+      final double total = _categories.isEmpty ? 1.0 : _categories.length.toDouble();
+      for (int i = 0; i < _categories.length; i++) {
+        double angle = (2 * pi * i) / total;
+        double r = 750.0 + (i % 2 * 350.0);
+        double defCatX = centerX + r * cos(angle);
+        double defCatY = centerY + r * sin(angle);
+        final String nodeId = 'cat_${_categories[i]}_$i';
+        widgets.add(_buildDraggableNode(defCatX, defCatY, _categories[i], _getCategoryColor(i), nodeId));
+        final catPos = _getNodePos(nodeId, defCatX, defCatY);
+        final items = _groupedItems[_categories[i]] ?? [];
+        for (int j = 0; j < items.length; j++) {
+          int ring = 1 + (j ~/ 6);
+          double theta = angle + (2 * pi * (j % 6)) / 6 + (ring * 0.3);
+          widgets.add(_buildDraggableItemNode(catPos.dx + (140.0 + ring * 110.0) * cos(theta), catPos.dy + (140.0 + ring * 110.0) * sin(theta), items[j]));
+        }
       }
     }
     return widgets;
@@ -475,96 +323,62 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
 
   Widget _buildDraggableNode(double defX, double defY, String label, Color color, String id, {bool isCenter = false}) {
     final pos = _getNodePos(id, defX, defY);
+    final isDragging = _draggedId == id;
     return Positioned(
+      key: ValueKey('node_$id'),
       left: pos.dx - (isCenter ? 75 : 60),
       top: pos.dy - (isCenter ? 75 : 60),
-      child: AnimatedBuilder(
-        animation: _waveController,
-        builder: (context, child) {
-          final double wave = sin((_waveController.value * 2 * pi) + (id.hashCode % 10));
-          final double scale = isCenter ? (1.0 + (wave * 0.05)) : 1.0;
-          return Transform.scale(
-            scale: scale,
-            child: Transform.translate(
-              offset: Offset(0, wave * (isCenter ? 4 : 8)),
-              child: child,
-            ),
-          );
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanStart: (_) {
+          HapticFeedback.mediumImpact();
+          setState(() => _draggedId = 'node_$id');
         },
-        child: GestureDetector(
-          onPanUpdate: (details) {
-            final key = 'mode_${_viewMode}_$id';
-            _customOffsets[key] = pos + details.delta;
-            setState(() {}); 
-          },
-          onTap: () {
-            if (!isCenter) {
-              Navigator.push(
-                context,
-                CupertinoPageRoute(
-                  builder: (context) => CategoryDetailScreen(
-                    category: label,
-                    items: _groupedItems[label] ?? [],
-                  ),
-                ),
-              );
-            }
+        onPanUpdate: (details) {
+          setState(() {
+            final double scale = _transformationController.value.getMaxScaleOnAxis();
+            _customOffsets['mode_${_viewMode}_$id'] = (_customOffsets['mode_${_viewMode}_$id'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.85;
+          });
+        },
+        onPanEnd: (_) => setState(() => _draggedId = null),
+        onTap: () { if (!isCenter) Navigator.push(context, CupertinoPageRoute(builder: (c) => CategoryDetailScreen(category: label, items: _groupedItems[label] ?? []))); },
+        child: AnimatedBuilder(
+          animation: _waveController,
+          builder: (c, child) {
+            double wave = sin((_waveController.value * 2 * pi) + (id.hashCode % 10));
+            double scale = isDragging ? 1.1 : (isCenter ? 1.0 + wave * 0.05 : 1.0);
+            return Transform.scale(scale: scale, child: Transform.translate(offset: Offset(0, wave * (isCenter ? 4 : 8)), child: child));
           },
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: isCenter ? 150 : 120,
-                height: isCenter ? 150 : 120,
+                width: isCenter ? 150 : 120, height: isCenter ? 150 : 120,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: color.withOpacity(0.5), width: 3),
+                  color: color.withOpacity(isDragging ? 0.6 : 0.4), shape: BoxShape.circle,
+                  border: Border.all(color: color.withOpacity(0.7), width: 3),
                   boxShadow: [
-                    BoxShadow(color: color.withOpacity(0.2), blurRadius: 20, spreadRadius: 2),
+                    BoxShadow(
+                      color: color.withOpacity(isDragging ? 0.5 : 0.3), 
+                      blurRadius: isDragging ? 40 : 20,
+                      spreadRadius: isDragging ? 5 : 0,
+                    ),
+                    if (isDragging) BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10)),
                   ],
                 ),
                 child: Center(
                   child: Container(
                     margin: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.25),
-                      shape: BoxShape.circle,
-                    ),
+                    decoration: BoxDecoration(color: color.withOpacity(0.4), shape: BoxShape.circle),
                     child: isCenter 
-                      ? Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Image.asset('assets/snapi.png', fit: BoxFit.contain),
-                        )
-                      : Icon(CupertinoIcons.folder_fill, color: color, size: 40),
+                      ? ClipRRect(borderRadius: BorderRadius.circular(75), child: Image.asset('assets/snapi.png', fit: BoxFit.cover)) 
+                      : const Icon(CupertinoIcons.folder_fill, color: Colors.white, size: 40),
                   ),
                 ),
               ),
               if (label.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                const SizedBox(height: 8),
+                Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+              ]
             ],
           ),
         ),
@@ -574,68 +388,105 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
 
   Widget _buildDraggableItemNode(double defX, double defY, ScreenshotItem item) {
     final pos = _getNodePos(item.id, defX, defY);
+    final isDragging = _draggedId == 'item_${item.id}';
     return Positioned(
-      left: pos.dx - 55,
-      top: pos.dy - 65,
-      child: AnimatedBuilder(
-        animation: _waveController,
-        builder: (context, child) {
-          final double wave = sin((_waveController.value * 2 * pi) + (item.id.hashCode % 10));
-          return Transform.translate(
-            offset: Offset(0, wave * 6),
-            child: child,
-          );
+      key: ValueKey('item_${item.id}'),
+      left: pos.dx - 60, top: pos.dy - 75,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanStart: (_) {
+          HapticFeedback.mediumImpact();
+          setState(() => _draggedId = 'item_${item.id}');
         },
-        child: GestureDetector(
-          onPanUpdate: (details) {
-            final key = 'mode_${_viewMode}_${item.id}';
-            _customOffsets[key] = pos + details.delta;
-            setState(() {});
+        onPanUpdate: (details) {
+          setState(() {
+            final double scale = _transformationController.value.getMaxScaleOnAxis();
+            // Using 0.85 factor for more controlled feel
+            _customOffsets['mode_${_viewMode}_${item.id}'] = (_customOffsets['mode_${_viewMode}_${item.id}'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.85;
+          });
+        },
+        onPanEnd: (_) {
+          final draggedIdCopy = _draggedId;
+          setState(() => _draggedId = null);
+          
+          if (draggedIdCopy != null && draggedIdCopy.startsWith('item_')) {
+            final itemId = draggedIdCopy.substring(5);
+            final itemPos = _customOffsets['mode_${_viewMode}_$itemId'];
+            if (itemPos != null) {
+              // Check if dropped on a folder
+              for (int i = 0; i < _categories.length; i++) {
+                final String cat = _categories[i];
+                final String catNodeId = 'cat_${cat}_$i';
+                final catPos = _getNodePos(catNodeId, 0, 0);
+                if ((itemPos - catPos).distance < 120) {
+                  final item = _findItemById(itemId);
+                  if (item != null && item.category != cat) {
+                    DatabaseService.updateItemCategory(item, cat);
+                    _showDropToast(cat);
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        },
+        onTap: () => Navigator.push(context, CupertinoPageRoute(builder: (c) => CaptureDetailsScreen(item: item))),
+        child: AnimatedBuilder(
+          animation: _waveController,
+          builder: (c, child) {
+            double wave = sin((_waveController.value * 2 * pi) + (item.id.hashCode % 10));
+            return Transform.scale(
+              scale: isDragging ? 1.15 : 1.0, 
+              child: Transform.translate(offset: Offset(0, wave * 6), child: child)
+            );
           },
-          onTap: () => Navigator.push(
-            context,
-            CupertinoPageRoute(builder: (context) => CaptureDetailsScreen(item: item)),
-          ),
           child: Container(
-            width: 110,
-            height: 140,
-            padding: const EdgeInsets.all(6),
+            width: 110, height: 140,
             decoration: BoxDecoration(
-              color: CupertinoColors.systemBackground.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.4)),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDragging ? 0.4 : 0.25), 
+                  blurRadius: isDragging ? 35 : 18, 
+                  offset: isDragging ? const Offset(0, 15) : const Offset(0, 6),
+                ),
+                if (isDragging) BoxShadow(color: CupertinoColors.activeBlue.withOpacity(0.4), blurRadius: 20, spreadRadius: 2),
               ],
             ),
-            child: Column(
+            child: Stack(
               children: [
-                Expanded(
+                Positioned.fill(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(item.path),
-                      fit: BoxFit.cover,
-                      cacheWidth: 200,
-                      errorBuilder: (c, e, s) => Container(
-                        color: CupertinoColors.systemGrey6,
-                        child: const Icon(CupertinoIcons.photo, size: 30, color: CupertinoColors.systemGrey),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.file(File(item.path), fit: BoxFit.cover, cacheWidth: 200),
+                  ),
+                ),
+                Positioned(
+                  bottom: 0, left: 0, right: 0,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: (CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white).withOpacity(0.3),
+                          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1), width: 0.5)),
+                        ),
+                        child: Text(
+                          item.note.isEmpty ? 'Capture' : item.note, 
+                          maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 10, 
+                            fontWeight: FontWeight.w800, 
+                            color: CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                            letterSpacing: 0.3
+                          )
+                        ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    item.note.isEmpty ? 'Capture' : item.note,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                const SizedBox(height: 4),
               ],
             ),
           ),
@@ -644,21 +495,74 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     );
   }
 
-  String _getMonthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[month - 1];
+  List<String> _getDateCategories() {
+    final allItems = _groupedItems.values.expand((x) => x).toList();
+    allItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    List<String> res = [];
+    for (var it in allItems) {
+      final s = '${it.createdAt.day} ${_getMonthName(it.createdAt.month)} ${it.createdAt.year}';
+      if (!res.contains(s)) res.add(s);
+    }
+    return res;
   }
 
-  Color _getCategoryColor(int index) {
-    final colors = [
-      CupertinoColors.systemPurple,
-      CupertinoColors.systemOrange,
-      CupertinoColors.systemPink,
-      CupertinoColors.systemTeal,
-      CupertinoColors.systemGreen,
-      CupertinoColors.systemIndigo,
-    ];
-    return colors[index % colors.length];
+  ScreenshotItem? _findItemById(String id) {
+    for (var list in _groupedItems.values) {
+      for (var item in list) {
+        if (item.id == id) return item;
+      }
+    }
+    return null;
+  }
+
+  void _showDropToast(String category) {
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        Future.delayed(const Duration(seconds: 1), () {
+          if (Navigator.canPop(context)) Navigator.pop(context);
+        });
+        return Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: CupertinoColors.activeBlue.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Moved to $category',
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, decoration: TextDecoration.none),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _getMonthName(int m) => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1];
+  Color _getCategoryColor(int i) => [CupertinoColors.systemPurple, CupertinoColors.systemOrange, CupertinoColors.systemPink, CupertinoColors.systemTeal, CupertinoColors.systemGreen, CupertinoColors.systemIndigo][i % 6];
+
+  Widget _buildAnimatedMenuButton({required int index, required bool isOpen, required IconData icon, required String label, required double bottom, required VoidCallback onPressed}) {
+    return AnimatedPositioned(
+      duration: Duration(milliseconds: 300 + (index * 60)), curve: Curves.easeOutQuart,
+      bottom: isOpen ? bottom : 0, right: 0,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200), opacity: isOpen ? 1.0 : 0.0,
+        child: AnimatedScale(duration: const Duration(milliseconds: 400), scale: isOpen ? 1.0 : 0.4, curve: Curves.easeOutBack, child: _buildFloatingButton(icon: icon, label: label, onPressed: onPressed)),
+      ),
+    );
+  }
+
+  Widget _buildFloatingButton({required IconData icon, required String label, required VoidCallback onPressed, Color color = CupertinoColors.activeBlue}) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(18)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: Colors.white, size: 20), const SizedBox(width: 10), Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700))]),
+      ),
+    );
   }
 }
 
@@ -670,110 +574,66 @@ class MindMapPainter extends CustomPainter {
   final int viewMode;
   final List<String> dateCategories;
   final String Function(int) getMonthName;
+  final double canvasSize;
 
-  MindMapPainter({
-    required this.categories, 
-    required this.groupedItems, 
-    required this.isDark,
-    required this.customOffsets,
-    required this.viewMode,
-    required this.dateCategories,
-    required this.getMonthName,
-  });
+  MindMapPainter({required this.categories, required this.groupedItems, required this.isDark, required this.customOffsets, required this.viewMode, required this.dateCategories, required this.getMonthName, required this.canvasSize});
 
-  Offset _getPos(String id, double defX, double defY) {
-    final key = 'mode_${viewMode}_$id';
-    return customOffsets[key] ?? Offset(defX, defY);
-  }
+  Offset _getPos(String id, double defX, double defY) => customOffsets['mode_${viewMode}_$id'] ?? Offset(defX, defY);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = CupertinoColors.activeBlue.withOpacity(isDark ? 0.2 : 0.3)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..isAntiAlias = true;
-
-    final double defCenterX = 2500.0;
-    final double defCenterY = 2500.0;
-    final centerPos = _getPos('root', defCenterX, defCenterY);
+    final paint = Paint()..color = CupertinoColors.activeBlue.withOpacity(isDark ? 0.2 : 0.3)..strokeWidth = 2.0..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+    final double center = canvasSize / 2;
+    final centerPos = _getPos('root', center, center);
 
     if (viewMode == 0) {
       final allItems = groupedItems.values.expand((x) => x).toList();
       for (int i = 0; i < allItems.length; i++) {
-        double goldenAngle = pi * (3 - sqrt(5)); 
-        double theta = i * goldenAngle;
+        double theta = i * (pi * (3 - sqrt(5))); 
         double r = 160 + (90 * sqrt(i));
-        final targetPos = _getPos(allItems[i].id, defCenterX + r * cos(theta), defCenterY + r * sin(theta));
-        _drawOrganicCurve(canvas, centerPos, targetPos, paint);
+        _drawCurve(canvas, centerPos, _getPos(allItems[i].id, center + r * cos(theta), center + r * sin(theta)), paint);
       }
     } else if (viewMode == 2) {
+      final double total = dateCategories.isEmpty ? 1.0 : dateCategories.length.toDouble();
       for (int i = 0; i < dateCategories.length; i++) {
-        double angle = (2 * pi * i) / (dateCategories.isEmpty ? 1 : dateCategories.length);
-        final catPos = _getPos('date_${dateCategories[i]}', defCenterX + 600 * cos(angle), defCenterY + 600 * sin(angle));
-        _drawOrganicCurve(canvas, centerPos, catPos, paint);
-
-        final items = groupedItems.values.expand((x) => x).where((item) {
-          final dateStr = '${item.createdAt.day} ${getMonthName(item.createdAt.month)} ${item.createdAt.year}';
-          return dateStr == dateCategories[i];
-        }).toList();
-
+        double angle = (2 * pi * i) / total;
+        final String nodeId = 'date_${dateCategories[i]}_$i';
+        final catPos = _getPos(nodeId, center + 600 * cos(angle), center + 600 * sin(angle));
+        _drawCurve(canvas, centerPos, catPos, paint);
+        final items = groupedItems.values.expand((x) => x).where((it) => '${it.createdAt.day} ${getMonthName(it.createdAt.month)} ${it.createdAt.year}' == dateCategories[i]).toList();
         for (int j = 0; j < items.length; j++) {
-          int layer = (j / 6).floor();
-          int indexInLayer = j % 6;
-          int itemsInThisLayer = (j >= (layer * 6) && j < (layer + 1) * 6) ? min(6, items.length - layer * 6) : 6;
-          double layerRadius = 220.0 + (layer * 140.0);
-          double arcSweep = pi / (1.2 + (layer * 0.2));
-          double subAngle = angle - (arcSweep / 2) + (arcSweep * indexInLayer / (itemsInThisLayer > 1 ? itemsInThisLayer - 1 : 1));
-          if (itemsInThisLayer == 1) subAngle = angle;
-          
-          final itemPos = _getPos(items[j].id, catPos.dx + layerRadius * cos(subAngle), catPos.dy + layerRadius * sin(subAngle));
-          _drawOrganicCurve(canvas, catPos, itemPos, paint);
+          double r = 220.0 + (j / 6).floor() * 140.0;
+          double subAngle = angle - (pi/1.5) / 2 + (pi/1.5) * (j%6) / 5;
+          _drawCurve(canvas, catPos, _getPos(items[j].id, catPos.dx + r * cos(subAngle), catPos.dy + r * sin(subAngle)), paint);
         }
       }
     } else {
+      final double total = categories.isEmpty ? 1.0 : categories.length.toDouble();
       for (int i = 0; i < categories.length; i++) {
-        double angle = (2 * pi * i) / (categories.isEmpty ? 1 : categories.length);
-        double catRadius = 750.0 + (i % 2 == 0 ? 0 : 350.0);
-        final catPos = _getPos('cat_${categories[i]}', defCenterX + catRadius * cos(angle), defCenterY + catRadius * sin(angle));
-        _drawOrganicCurve(canvas, centerPos, catPos, paint);
-
+        double angle = (2 * pi * i) / total;
+        double r = 750.0 + (i % 2 * 350.0);
+        final String nodeId = 'cat_${categories[i]}_$i';
+        final catPos = _getPos(nodeId, center + r * cos(angle), center + r * sin(angle));
+        _drawCurve(canvas, centerPos, catPos, paint);
         final items = groupedItems[categories[i]] ?? [];
         for (int j = 0; j < items.length; j++) {
-          int ring = 1;
-          int capacity = 6;
-          int currentItemCount = j;
-          while (currentItemCount >= capacity) {
-            currentItemCount -= capacity;
-            ring++;
-            capacity = ring * 6;
-          }
-          double ringRadius = 140.0 + (ring * 110.0);
-          double theta = angle + (2 * pi * currentItemCount) / capacity + (ring * 0.3);
-          final itemPos = _getPos(items[j].id, catPos.dx + ringRadius * cos(theta), catPos.dy + ringRadius * sin(theta));
-          _drawOrganicCurve(canvas, catPos, itemPos, paint);
+          int ring = 1 + (j ~/ 6);
+          double theta = angle + (2 * pi * (j % 6)) / 6 + (ring * 0.3);
+          _drawCurve(canvas, catPos, _getPos(items[j].id, catPos.dx + (140.0 + ring * 110.0) * cos(theta), catPos.dy + (140.0 + ring * 110.0) * sin(theta)), paint);
         }
       }
     }
   }
 
-  void _drawOrganicCurve(Canvas canvas, Offset start, Offset end, Paint paint) {
-    final path = Path();
-    path.moveTo(start.dx, start.dy);
-    
-    final double dist = (end - start).distance;
-    final double controlPointDist = dist * 0.45;
-    final Offset direction = (end - start) / (dist == 0 ? 1 : dist);
-    final Offset normal = Offset(-direction.dy, direction.dx);
-    
-    final cp1 = start + direction * controlPointDist + normal * (controlPointDist * 0.25);
-    final cp2 = end - direction * controlPointDist - normal * (controlPointDist * 0.25);
-    
+  void _drawCurve(Canvas canvas, Offset start, Offset end, Paint paint) {
+    final path = Path()..moveTo(start.dx, start.dy);
+    double dist = (end - start).distance;
+    final cp1 = start + (end - start) * 0.45 + Offset(-(end - start).dy, (end - start).dx) * 0.1;
+    final cp2 = end - (end - start) * 0.45 - Offset(-(end - start).dy, (end - start).dx) * 0.1;
     path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, end.dx, end.dy);
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter old) => true;
 }
