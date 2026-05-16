@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../widgets/screenshot_popup.dart';
 import 'capture_details_screen.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:typed_data';
 import 'search_screen.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -22,10 +23,12 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _instructionIndex = 0;
   late final Timer _instructionTimer;
   bool _setupSkipped = false;
+  bool _galleryPermissionLimited = false;
+  bool _galleryPermissionDenied = false;
   final List<String> _instructions = [
     "Hi! I am Snapi",
     "Organize screenshot photos",
@@ -42,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _instructionTimer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
       if (mounted) {
         setState(() {
@@ -50,6 +54,57 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
     _checkSetupSkipped();
+    _checkPermissions();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Small delay to let OS update the permission state
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _checkPermissions();
+          _checkSetupSkipped();
+        }
+      });
+    }
+  }
+
+  Future<void> _checkPermissions() async {
+    try {
+      final state = await PhotoManager.requestPermissionExtend();
+      final phPhotos = await Permission.photos.status;
+      
+      // Fallback: Check actual asset count
+      final assetCount = await PhotoManager.getAssetCount();
+      
+      debugPrint('DEBUG: Home Screen - PM: $state, PH: $phPhotos, Count: $assetCount');
+      
+      if (mounted) {
+        setState(() {
+          // It's limited if:
+          // 1. Library explicitly says so
+          // 2. OR OS says granted but we only see a tiny number of photos (suspicious on Android 14)
+          bool isLimitedByOS = (state == PermissionState.limited) || (phPhotos == PermissionStatus.limited);
+          
+          // Suspicious check: If OS says 'authorized' but count is 2 or 3... 
+          // we treat it as limited to be safe.
+          bool looksLimitedByData = (state == PermissionState.authorized) && (assetCount > 0 && assetCount < 5);
+          
+          _galleryPermissionLimited = isLimitedByOS || looksLimitedByData;
+          
+          // Denied if not working and not limited
+          final isAuthorized = (state == PermissionState.authorized) && (phPhotos == PermissionStatus.granted) && !looksLimitedByData;
+          _galleryPermissionDenied = !isAuthorized && !_galleryPermissionLimited;
+          
+          if (_galleryPermissionLimited) {
+            debugPrint('DEBUG: Detected LIMITED access (either by OS or by low asset count)');
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('DEBUG: Error checking permissions on Home: $e');
+    }
   }
 
   Future<void> _checkSetupSkipped() async {
@@ -59,6 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _instructionTimer.cancel();
     super.dispose();
   }
@@ -168,9 +224,101 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: const Icon(CupertinoIcons.search, size: 28, color: CupertinoColors.activeBlue),
                 ),
               ),
-              
+
+              // PREMIUM WARNING BANNER (Now more compact)
+              if (_galleryPermissionLimited || _galleryPermissionDenied)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    child: GestureDetector(
+                      onTap: () => openAppSettings(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              CupertinoColors.systemRed.withOpacity(0.85),
+                              CupertinoColors.systemRed.withOpacity(0.95),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: CupertinoColors.systemRed.withOpacity(0.2),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: CupertinoColors.white.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                CupertinoIcons.photo_fill_on_rectangle_fill,
+                                color: CupertinoColors.white,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _galleryPermissionLimited ? 'Limited Gallery Access' : 'Gallery Access Denied',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: CupertinoColors.white,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    _galleryPermissionLimited 
+                                      ? 'Tap "FIX NOW" and select "Allow All".'
+                                      : 'Tap to grant gallery access.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: CupertinoColors.white.withOpacity(0.85),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: CupertinoColors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'FIX NOW',
+                                style: TextStyle(
+                                  color: CupertinoColors.systemRed,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
               // Reminder banner for users who skipped setup
-              if (_setupSkipped)
+              if (_setupSkipped && !_galleryPermissionDenied && !_galleryPermissionLimited)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -576,7 +724,7 @@ class _GalleryPickerState extends State<_GalleryPicker> {
           Container(
             width: 40,
             height: 4,
-            
+            decoration: BoxDecoration(
               color: CupertinoColors.systemGrey.withOpacity(0.4),
               borderRadius: BorderRadius.circular(2),
             ),
@@ -665,16 +813,16 @@ class AssetThumbnail extends StatelessWidget {
                     color: CupertinoColors.activeBlue,
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Icon(
-                    CupertinoIcons.camera_viewfinder,
-                    color: CupertinoColors.white,
-                    size: 12,
+                    child: const Icon(
+                      CupertinoIcons.camera_viewfinder,
+                      color: CupertinoColors.white,
+                      size: 12,
+                    ),
                   ),
                 ),
-              ),
-          ],
-        );
-      },
+            ],
+          );
+        },
     );
   }
 }

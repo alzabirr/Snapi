@@ -100,7 +100,7 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
     _loadTheme();
     // Start monitoring after the first frame so navigatorKey is available
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initScreenshotMonitoring();
+      startMonitoring();
     });
   }
 
@@ -116,19 +116,20 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !_monitoringStarted) {
-      _initScreenshotMonitoring();
+      startMonitoring();
     }
   }
 
-  Future<void> _initScreenshotMonitoring() async {
+  Future<void> startMonitoring() async {
     if (_monitoringStarted) return;
 
-    // Only start if onboarding is complete
+    // Check onboarding state unless we are forcing it
     final prefs = await SharedPreferences.getInstance();
     final bool seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
     if (!seenOnboarding) return;
 
     _monitoringStarted = true;
+    debugPrint('DEBUG: Starting screenshot monitoring...');
 
     // Listen for screenshot detections
     _screenshotSubscription = ScreenshotService.screenshotStream.listen((asset) {

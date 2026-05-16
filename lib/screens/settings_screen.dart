@@ -12,6 +12,7 @@ import 'recycle_bin_screen.dart';
 import 'category_manager_screen.dart';
 import '../widgets/floating_profile_icon.dart';
 import 'smart_organize_detail_screen.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -27,6 +28,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _autoSmartFolders = true;
   PermissionStatus _micStatus = PermissionStatus.denied;
   PermissionStatus _notificationStatus = PermissionStatus.denied;
+  PermissionState _galleryStatus = PermissionState.denied;
+  bool _isGalleryLimited = false;
 
   @override
   void initState() {
@@ -37,6 +40,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     final mic = await Permission.microphone.status;
     final notif = await Permission.notification.status;
+    final gallery = await PhotoManager.requestPermissionExtend();
+    final phPhotos = await Permission.photos.status;
+    final assetCount = await PhotoManager.getAssetCount();
     
     setState(() {
       _totalCaptures = DatabaseService.getAllItems().length;
@@ -45,6 +51,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _autoSmartFolders = prefs.getBool('auto_smart_folders') ?? true;
       _micStatus = mic;
       _notificationStatus = notif;
+      _galleryStatus = gallery;
+      // Use the same suspicious count check as Home Screen for consistency
+      _isGalleryLimited = (gallery == PermissionState.limited) || 
+                          (phPhotos == PermissionStatus.limited) ||
+                          (gallery == PermissionState.authorized && assetCount > 0 && assetCount < 5);
     });
   }
 
@@ -224,6 +235,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _showScreenshotNotifications,
                     onChanged: _toggleScreenshotNotifications,
                   ),
+                ),
+                CupertinoListTile(
+                  title: const Text('Gallery Access'),
+                  leading: _buildIOSIcon(CupertinoIcons.photo_fill, CupertinoColors.systemPink),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _isGalleryLimited ? 'Limited' : (_galleryStatus.isAuth ? 'Allowed' : 'Denied'),
+                        style: TextStyle(
+                          color: _isGalleryLimited ? CupertinoColors.systemOrange : (_galleryStatus.isAuth ? CupertinoColors.systemGrey : CupertinoColors.systemRed),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey3, size: 14),
+                    ],
+                  ),
+                  onTap: () => openAppSettings(),
                 ),
               ],
             ),

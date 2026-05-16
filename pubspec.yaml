@@ -4,7 +4,7 @@ description: "Snapi - Your Screenshot Assistant"
 publish_to: 'none' 
 
 
-version: 1.0.0+4005
+version: 1.0.0+6006
 
 environment:
   sdk: ^3.10.7
