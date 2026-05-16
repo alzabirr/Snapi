@@ -11,6 +11,9 @@ import 'package:photo_manager/photo_manager.dart';
 import 'dart:typed_data';
 import 'search_screen.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../services/screenshot_service.dart';
+import '../services/device_setup_service.dart';
+import 'device_setup_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +25,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _instructionIndex = 0;
   late final Timer _instructionTimer;
+  bool _setupSkipped = false;
   final List<String> _instructions = [
     "Hi! I am Snapi",
     "Organize screenshot photos",
@@ -45,6 +49,12 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     });
+    _checkSetupSkipped();
+  }
+
+  Future<void> _checkSetupSkipped() async {
+    final skipped = await DeviceSetupService.wasSetupSkipped();
+    if (mounted) setState(() => _setupSkipped = skipped);
   }
 
   @override
@@ -159,6 +169,72 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               
+              // Reminder banner for users who skipped setup
+              if (_setupSkipped)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (_) => DeviceSetupScreen(
+                              onDone: () {
+                                Navigator.pop(context);
+                                setState(() => _setupSkipped = false);
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 13),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6900).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: const Color(0xFFFF6900).withOpacity(0.35)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(CupertinoIcons.exclamationmark_shield_fill,
+                                color: Color(0xFFFF6900), size: 22),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Background permission needed',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFFF6900),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Tap to complete setup for 24/7 screenshot detection.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: const Color(0xFFFF6900)
+                                          .withOpacity(0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(CupertinoIcons.chevron_right,
+                                color: Color(0xFFFF6900), size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
               if (items.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
@@ -500,7 +576,7 @@ class _GalleryPickerState extends State<_GalleryPicker> {
           Container(
             width: 40,
             height: 4,
-            decoration: BoxDecoration(
+            
               color: CupertinoColors.systemGrey.withOpacity(0.4),
               borderRadius: BorderRadius.circular(2),
             ),
@@ -540,9 +616,16 @@ class _GalleryPickerState extends State<_GalleryPicker> {
                     ),
                     itemCount: _assets.length,
                     itemBuilder: (context, index) {
+                      final asset = _assets[index];
+                      // Use the same logic as the service to identify screenshots
+                      final isScreenshot = ScreenshotService.isScreenshot(asset);
+                      
                       return GestureDetector(
-                        onTap: () => widget.onSelected(_assets[index]),
-                        child: AssetThumbnail(asset: _assets[index]),
+                        onTap: () => widget.onSelected(asset),
+                        child: AssetThumbnail(
+                          asset: asset, 
+                          isScreenshot: isScreenshot
+                        ),
                       );
                     },
                   ),
@@ -556,8 +639,9 @@ class _GalleryPickerState extends State<_GalleryPicker> {
 
 class AssetThumbnail extends StatelessWidget {
   final AssetEntity asset;
+  final bool isScreenshot;
 
-  const AssetThumbnail({super.key, required this.asset});
+  const AssetThumbnail({super.key, required this.asset, this.isScreenshot = false});
 
   @override
   Widget build(BuildContext context) {
@@ -566,7 +650,30 @@ class AssetThumbnail extends StatelessWidget {
       builder: (context, snapshot) {
         final data = snapshot.data;
         if (data == null) return Container(color: CupertinoColors.systemGrey6);
-        return Image.memory(data, fit: BoxFit.cover);
+        
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.memory(data, fit: BoxFit.cover),
+            if (isScreenshot)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.activeBlue,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.camera_viewfinder,
+                    color: CupertinoColors.white,
+                    size: 12,
+                  ),
+                ),
+              ),
+          ],
+        );
       },
     );
   }

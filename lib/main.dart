@@ -11,6 +11,8 @@ import 'models/screenshot_item.dart';
 import 'widgets/screenshot_popup.dart';
 import 'screens/main_screen.dart';
 import 'screens/permissions_slider_screen.dart';
+import 'screens/device_setup_screen.dart';
+import 'services/device_setup_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -45,7 +47,19 @@ void main() async {
     final bool seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
     
     if (seenOnboarding) {
-      initialWidget = const MainScreen();
+      // Check if device setup guide needed
+      final needsSetup = await DeviceSetupService.needsSetupGuide();
+      if (needsSetup) {
+        initialWidget = DeviceSetupScreen(
+          onDone: () {
+            navigatorKey.currentState?.pushReplacement(
+              CupertinoPageRoute(builder: (_) => const MainScreen()),
+            );
+          },
+        );
+      } else {
+        initialWidget = const MainScreen();
+      }
       // Initialize speech service if already onboarded
       try {
         await SpeechService.init();

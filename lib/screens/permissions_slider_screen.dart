@@ -3,7 +3,9 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/speech_service.dart';
-import 'package:flutter/foundation.dart'; // for debugPrint
+import 'package:flutter/foundation.dart';
+import 'device_setup_screen.dart';
+import '../services/device_setup_service.dart';
 
 class PermissionsSliderScreen extends StatefulWidget {
   const PermissionsSliderScreen({super.key});
@@ -71,11 +73,20 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      // Finish onboarding
+      // Finish onboarding — show device setup guide once
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('seenOnboarding', true);
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacement(
+          context,
+          CupertinoPageRoute(
+            builder: (context) => DeviceSetupScreen(
+              onDone: () {
+                Navigator.pushReplacementNamed(context, '/home');
+              },
+            ),
+          ),
+        );
       }
     }
   }

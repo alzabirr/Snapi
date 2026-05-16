@@ -58,56 +58,60 @@ class ScreenshotService {
 
       if (paths.isEmpty) return;
 
-      final List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 1);
+      final List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 5);
       if (entities.isEmpty) return;
 
-      final AssetEntity latest = entities[0];
-      
-      if (isInitial) {
-        print('DEBUG: First Run - checking against baseline ID: ${latest.id} (Last Handled: $_lastImageId)');
+      // Handle each of the recent assets to ensure no skips
+      for (final AssetEntity latest in entities) {
+        if (latest.id == _lastImageId) break; // Reached already handled assets
         
         final DateTime now = DateTime.now();
         final bool isVeryRecent = now.difference(latest.createDateTime).inSeconds.abs() < 30;
 
-        if (isVeryRecent && _isScreenshot(latest)) {
-          if (latest.id != _lastImageId) {
-            print('DEBUG: Found fresh screenshot on startup! Triggering popup.');
-            _screenshotStream.add(latest);
-          } else {
-            print('DEBUG: Fresh screenshot found but already handled: ${latest.id}');
-          }
-        }
-        
-        // Update baseline to the latest seen, even if handled
-        if (_lastImageId != latest.id) {
-          _lastImageId = latest.id;
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(_prefLastId, latest.id);
-        }
-        return;
-      }
+        // On first run, we only care about screenshots taken while the app was starting
+        if (isInitial && !isVeryRecent) continue;
 
-      if (_lastImageId != latest.id) {
-        print('DEBUG: Change detected! New ID: ${latest.id}');
-        if (_isScreenshot(latest)) {
-          print('DEBUG: Screenshot confirmed! Adding to stream.');
+        if (isScreenshot(latest)) {
+          print('DEBUG: Screenshot confirmed! Adding to stream: ${latest.id}');
           _screenshotStream.add(latest);
         }
-        _lastImageId = latest.id;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_prefLastId, latest.id);
       }
+
+      // Update baseline to the latest seen
+      _lastImageId = entities[0].id;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefLastId, _lastImageId!);
     } catch (e) {
       print('DEBUG: Error checking for screenshots: $e');
     }
   }
 
-  static bool _isScreenshot(AssetEntity asset) {
+  static bool isScreenshot(AssetEntity asset) {
     final String title = asset.title?.toLowerCase() ?? '';
     final String path = asset.relativePath?.toLowerCase() ?? '';
-    return title.contains('screenshot') || 
-           title.contains('scr_') || 
-           path.contains('screenshot');
+    
+    // Check title (filename)
+    // Adding common patterns like 'screencapture', 'screen-shot', and brand specific ones
+    final bool matchesTitle = title.contains('screenshot') || 
+                              title.contains('scr_') || 
+                              title.contains('screencap') ||
+                              title.contains('screengrab') ||
+                              title.contains('screencapture') ||
+                              title.contains('screen-shot') ||
+                              title.contains('screen_shot') ||
+                              title.contains('screen shot') ||
+                              title.contains('capture');
+
+    // Check path (folder)
+    // Some phones use 'ScreenCapture' or 'Screencaps' folders
+    final bool matchesPath = path.contains('screenshot') || 
+                             path.contains('screencap') ||
+                             path.contains('capture') ||
+                             path.contains('screencapture') ||
+                             path.contains('screen-shot') ||
+                             path.contains('screen_shot');
+                             
+    return matchesTitle || matchesPath;
   }
 
   static void stopMonitoring() {

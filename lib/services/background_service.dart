@@ -7,7 +7,6 @@ import 'package:flutter_background_service_android/flutter_background_service_an
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'notification_service.dart';
 import 'database_service.dart';
 
 @pragma('vm:entry-point')
@@ -20,17 +19,26 @@ class BackgroundService {
         FlutterLocalNotificationsPlugin();
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      const AndroidNotificationChannel channel = AndroidNotificationChannel(
-        'snapshot_memo_background', // id
-        'Background Monitoring', // title
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      const AndroidNotificationChannel backgroundChannel = AndroidNotificationChannel(
+        'snapshot_memo_background',
+        'Background Monitoring',
         description: 'Used for detecting screenshots in the background',
         importance: Importance.low,
       );
 
-      await flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+      const AndroidNotificationChannel capturesChannel = AndroidNotificationChannel(
+        'snapshot_memo_captures',
+        'New Screenshot Captures',
+        description: 'Alerts when a new screenshot is detected',
+        importance: Importance.max,
+      );
+
+      await androidImplementation?.createNotificationChannel(backgroundChannel);
+      await androidImplementation?.createNotificationChannel(capturesChannel);
     }
 
     await service.configure(
@@ -91,18 +99,32 @@ class BackgroundService {
       debugPrint('Background Service: Failed to load initial settings: $e');
     }
 
-    // Re-initialize notifications in this isolate
+    // Re-initialize notifications in this isolate (CRITICAL: must call initialize())
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
 
-    // Periodic check logic (Ultra-fast detection interval)
-    Timer.periodic(const Duration(milliseconds: 1500), (timer) async {
-      if (service is AndroidServiceInstance) {
-        if (!await service.isForegroundService()) {
-           // If we're not in foreground but service running, we should still check
-        }
-      }
+    const AndroidInitializationSettings androidInit =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initSettings =
+        InitializationSettings(android: androidInit);
+    await flutterLocalNotificationsPlugin.initialize(initSettings);
 
+    // Recreate notification channel in this isolate (required on some devices)
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final androidPlugin = flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      
+      const AndroidNotificationChannel capturesChannel = AndroidNotificationChannel(
+        'snapshot_memo_captures',
+        'New Screenshot Captures',
+        description: 'Alerts when a new screenshot is detected',
+        importance: Importance.max,
+      );
+      await androidPlugin?.createNotificationChannel(capturesChannel);
+    }
+
+    // Periodic check logic (Optimized for 24/7 stability)
+    Timer.periodic(const Duration(seconds: 2), (timer) async {
       await _checkForNewScreenshot(flutterLocalNotificationsPlugin, showNotifications);
     });
   }
@@ -132,40 +154,38 @@ class BackgroundService {
 
       if (paths.isEmpty) return;
 
-      final List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 1);
+      final List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 5);
       if (entities.isEmpty) return;
-
-      final AssetEntity latest = entities[0];
-      final DateTime now = DateTime.now();
-      // Check if created in last 60 seconds to avoid duplicate alerts on restart
-      final bool isVeryRecent = now.difference(latest.createDateTime).inSeconds.abs() < 60; 
 
       final prefs = await SharedPreferences.getInstance();
       _lastSeenAssetId ??= prefs.getString('last_known_screenshot_id');
 
+      // First run — just set baseline, don't notify
       if (_lastSeenAssetId == null) {
-        _lastSeenAssetId = latest.id;
-        await prefs.setString('last_known_screenshot_id', latest.id);
+        _lastSeenAssetId = entities[0].id;
+        await prefs.setString('last_known_screenshot_id', entities[0].id);
         return;
       }
 
-      if (_lastSeenAssetId != latest.id) {
-        // New image detected!
-        _lastSeenAssetId = latest.id;
-        await prefs.setString('last_known_screenshot_id', latest.id);
+      // Loop through recent assets until we hit one we've already seen
+      for (final asset in entities) {
+        if (asset.id == _lastSeenAssetId) break; // Already handled
 
-        if (isVeryRecent && _isScreenshot(latest) && showNotifications) {
-           // Before showing notification, check if it's already in the database
-           final items = DatabaseService.getAllItems();
-           final alreadyInDb = items.any((item) => item.id == latest.id);
-           
-           if (alreadyInDb) {
-             debugPrint('Background Service: Screenshot ${latest.id} already in DB. Skipping notification.');
-             return;
-           }
+        final DateTime now = DateTime.now();
+        final bool isVeryRecent = now.difference(asset.createDateTime).inSeconds.abs() < 60;
 
-           await notifications.show(
-            latest.id.hashCode,
+        if (isVeryRecent && _isScreenshot(asset) && showNotifications) {
+          // Check if already saved in database
+          final items = DatabaseService.getAllItems();
+          final alreadyInDb = items.any((item) => item.id == asset.id);
+          
+          if (alreadyInDb) {
+            debugPrint('Background Service: Screenshot ${asset.id} already in DB. Skipping.');
+            continue;
+          }
+
+          await notifications.show(
+            asset.id.hashCode,
             'New Screenshot Captured',
             'Tap to add a voice or text note.',
             const NotificationDetails(
@@ -178,10 +198,14 @@ class BackgroundService {
                 showWhen: true,
               ),
             ),
-            payload: latest.id,
+            payload: asset.id,
           );
         }
       }
+
+      // Update baseline to newest asset
+      _lastSeenAssetId = entities[0].id;
+      await prefs.setString('last_known_screenshot_id', _lastSeenAssetId!);
     } catch (e) {
       // PhotoManager might throw if permission not granted
       print('Background Service: Error checking screenshots: $e');
@@ -190,7 +214,27 @@ class BackgroundService {
 
   static bool _isScreenshot(AssetEntity asset) {
     final String title = asset.title?.toLowerCase() ?? '';
-    // Relative path is sometimes null in limited access, check title principally
-    return title.contains('screenshot') || title.contains('scr_');
+    final String path = asset.relativePath?.toLowerCase() ?? '';
+    
+    // Check title (filename)
+    final bool matchesTitle = title.contains('screenshot') || 
+                              title.contains('scr_') || 
+                              title.contains('screencap') ||
+                              title.contains('screengrab') ||
+                              title.contains('screencapture') ||
+                              title.contains('screen-shot') ||
+                              title.contains('screen_shot') ||
+                              title.contains('screen shot') ||
+                              title.contains('capture');
+
+    // Check path (folder)
+    final bool matchesPath = path.contains('screenshot') || 
+                             path.contains('screencap') ||
+                             path.contains('capture') ||
+                             path.contains('screencapture') ||
+                             path.contains('screen-shot') ||
+                             path.contains('screen_shot');
+                             
+    return matchesTitle || matchesPath;
   }
 }
