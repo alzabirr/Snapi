@@ -599,33 +599,60 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> with 
                                     ),
                                   ] else if (isWelcome && page['features'] != null) ...[
                                     // WELCOME PAGE FEATURES
-                                    const SizedBox(height: 30),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: (page['features'] as List).map((f) {
-                                        return Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                                            child: Column(
-                                              children: [
-                                                Container(
-                                                  padding: const EdgeInsets.all(10),
-                                                  decoration: BoxDecoration(color: CupertinoColors.systemGrey6, borderRadius: BorderRadius.circular(12)),
-                                                  child: Icon(f['icon'] as IconData, size: 22, color: CupertinoColors.activeBlue),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Text(
+                                    const SizedBox(height: 24),
+                                    (() {
+                                      final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+                                      final list = page['features'] as List;
+                                      
+                                      Widget buildCard(Map<String, dynamic> f) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7),
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const SizedBox(width: 10),
+                                              Icon(f['icon'] as IconData, size: 20, color: CupertinoColors.activeBlue),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
                                                   f['text'] as String,
-                                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel, height: 1.2),
-                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w400,
+                                                    color: isDark ? CupertinoColors.white : const Color(0xFF1E1E1E),
+                                                  ),
                                                 ),
-                                              ],
-                                            ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                            ],
                                           ),
                                         );
-                                      }).toList(),
-                                    ),
+                                      }
+
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(child: buildCard(list[0] as Map<String, dynamic>)),
+                                              const SizedBox(width: 10),
+                                              Expanded(child: buildCard(list[1] as Map<String, dynamic>)),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            children: [
+                                              Expanded(child: buildCard(list[2] as Map<String, dynamic>)),
+                                              const SizedBox(width: 10),
+                                              Expanded(child: buildCard(list[3] as Map<String, dynamic>)),
+                                            ],
+                                          ),
+                                        ],
+                                      );
+                                    })(),
                                   ],
                                   const SizedBox(height: 40),
                                 ],

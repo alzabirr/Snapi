@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/material.dart' show Colors;
+import 'package:flutter/material.dart' show Colors, Material;
 import 'package:permission_handler/permission_handler.dart';
 import '../main.dart';
 import '../services/database_service.dart';
@@ -504,18 +504,179 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   void _showPrivacyPolicy(BuildContext context) {
-    showCupertinoDialog(
+    showGeneralDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Privacy Policy'),
-        content: const Text('Your screenshots and notes stay safely on your device. We don’t upload any personal data to the cloud.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: CupertinoColors.black.withOpacity(0.55),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        final curveValue = Curves.easeOutBack.transform(anim1.value);
+        final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+        
+        return Transform.scale(
+          scale: curveValue,
+          child: Opacity(
+            opacity: anim1.value.clamp(0.0, 1.0),
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isDark ? 0.45 : 0.12),
+                      blurRadius: 36,
+                      offset: const Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Privacy Shield Header Icon
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.activeBlue.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.shield_fill,
+                          color: CupertinoColors.activeBlue,
+                          size: 40,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Privacy Policy',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w400,
+                          color: isDark ? CupertinoColors.white : const Color(0xFF1F1F1F),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Your trust is our priority. Snapi is designed to protect your personal space.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w400,
+                          color: isDark ? CupertinoColors.systemGrey : const Color(0xFF555555),
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Bullet Points
+                      _buildPrivacyItem(
+                        context,
+                        CupertinoIcons.device_phone_portrait,
+                        '100% Local Processing',
+                        'All text recognition and organization happen locally on your phone.',
+                        isDark,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildPrivacyItem(
+                        context,
+                        CupertinoIcons.eye_slash,
+                        'Zero Cloud Uploads',
+                        'We never upload your screenshots, voice notes, or metadata to any servers.',
+                        isDark,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildPrivacyItem(
+                        context,
+                        CupertinoIcons.lock_fill,
+                        'Completely Private',
+                        'No analytics or trackers. Your personal database belongs only to you.',
+                        isDark,
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Dismiss Button
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: double.infinity,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.activeBlue,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Got it',
+                              style: TextStyle(
+                                color: CupertinoColors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPrivacyItem(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String desc,
+    bool isDark,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: CupertinoColors.activeBlue,
+          size: 18,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? CupertinoColors.white : const Color(0xFF1E1E1E),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: isDark ? CupertinoColors.systemGrey2 : const Color(0xFF666666),
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
