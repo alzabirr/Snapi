@@ -21,7 +21,7 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
   int _totalCaptures = 0;
   int _deletedCaptures = 0;
   bool _showScreenshotNotifications = true;
@@ -34,13 +34,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadStats();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadStats();
+    }
   }
   void _loadStats() async {
     final prefs = await SharedPreferences.getInstance();
     final mic = await Permission.microphone.status;
     final notif = await Permission.notification.status;
-    final gallery = await PhotoManager.requestPermissionExtend();
+    final gallery = await PhotoManager.getPermissionState(requestOption: const PermissionRequestOption());
     final phPhotos = await Permission.photos.status;
     final assetCount = await PhotoManager.getAssetCount();
     

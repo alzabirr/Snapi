@@ -36,8 +36,13 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
     return CupertinoPageScaffold(
       backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF9F9FB),
       navigationBar: CupertinoNavigationBar(
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context),
+          child: const Icon(CupertinoIcons.chevron_back, size: 28),
+        ),
+        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF9F9FB),
         middle: const Text('AI Workflow'),
-        backgroundColor: (isDark ? const Color(0xFF000000) : const Color(0xFFF9F9FB)).withOpacity(0.8),
         border: null,
       ),
       child: Stack(

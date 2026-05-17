@@ -63,41 +63,15 @@ class DeviceSetupService {
     }
   }
 
-  /// Step 2: Open manufacturer-specific settings page via native platform channel
+  /// Step 2: Open specific App Settings page
+  /// This takes the user EXACTLY to Snapi's settings page so they don't have to search for it.
   static Future<void> openManufacturerSettings(String manufacturer) async {
     try {
-      String method;
-
-      if (manufacturer.contains('xiaomi') ||
-          manufacturer.contains('redmi') ||
-          manufacturer.contains('poco')) {
-        method = 'openAutoStart';
-      } else if (manufacturer.contains('oppo') ||
-          manufacturer.contains('realme')) {
-        method = 'openAppDetails';
-      } else if (manufacturer.contains('oneplus')) {
-        method = 'openOnePlusSettings';
-      } else if (manufacturer.contains('huawei') ||
-          manufacturer.contains('honor')) {
-        method = 'openPowerManager';
-      } else if (manufacturer.contains('samsung')) {
-        method = 'openBatterySettings';
-      } else if (manufacturer.contains('vivo')) {
-        method = 'openAppDetails';
-      } else {
-        method = 'openBatterySettings';
-      }
-
-      final result = await _channel.invokeMethod<bool>(method);
-      if (result != true) {
-        debugPrint('DeviceSetup: Native intent returned false, fallback not needed (handled natively).');
-      }
+      // Opens Settings -> Apps -> Snapi
+      // From here the user can directly turn on Autostart or change Battery restrictions.
+      await openAppSettings();
     } catch (e) {
-      debugPrint('DeviceSetup: Platform channel failed: $e');
-      // If platform channel fails entirely, try permission_handler fallback
-      try {
-        await openAppSettings();
-      } catch (_) {}
+      debugPrint('DeviceSetup: Failed to open app settings: $e');
     }
   }
 
@@ -109,43 +83,43 @@ class DeviceSetupService {
       return {
         'brand': 'Xiaomi / Redmi / Poco',
         'description':
-            'MIUI aggressively kills background apps. Enable Autostart for Snapi so it can detect screenshots 24/7.',
+            '1. Tap on "Battery saver"\n2. Select "No restrictions"\n3. Turn on "Autostart"',
         'color': const Color(0xFFFF6900),
-        'tip': '💡 Also lock Snapi in Recent Apps by swiping down on it.',
+        'tip': '',
         'hasSettingsButton': true,
-        'settingsLabel': 'Open Autostart Settings',
-        'settingsIcon': CupertinoIcons.rocket_fill,
+        'settingsLabel': 'Open App Settings',
+        'settingsIcon': CupertinoIcons.settings,
       };
     } else if (manufacturer.contains('oneplus')) {
       return {
         'brand': 'OnePlus',
         'description':
-            'OxygenOS may freeze Snapi in the background. Disable battery optimization for reliable screenshot detection.',
+            '1. Tap on "Battery usage"\n2. Enable "Allow background activity"',
         'color': const Color(0xFFEB0029),
-        'tip': '💡 Set Snapi\'s battery usage to "Unrestricted" for best results.',
+        'tip': '',
         'hasSettingsButton': true,
-        'settingsLabel': 'Open Battery Settings',
-        'settingsIcon': CupertinoIcons.battery_100,
+        'settingsLabel': 'Open App Settings',
+        'settingsIcon': CupertinoIcons.settings,
       };
     } else if (manufacturer.contains('oppo') ||
         manufacturer.contains('realme')) {
       return {
         'brand': 'Oppo / Realme',
         'description':
-            'ColorOS restricts background activity. Allow Snapi to auto-start for uninterrupted screenshot detection.',
+            '1. Tap on "Battery usage"\n2. Enable "Allow background activity"\n3. Turn on "Auto-launch"',
         'color': const Color(0xFF1DB954),
-        'tip': '💡 Make sure Snapi is excluded from Power Saving Mode.',
+        'tip': '',
         'hasSettingsButton': true,
-        'settingsLabel': 'Open Startup Settings',
-        'settingsIcon': CupertinoIcons.rocket_fill,
+        'settingsLabel': 'Open App Settings',
+        'settingsIcon': CupertinoIcons.settings,
       };
     } else if (manufacturer.contains('vivo')) {
       return {
         'brand': 'Vivo',
         'description':
-            'Enable background running for Snapi in iManager for reliable detection.',
+            '1. Tap on "Battery"\n2. Allow high background power consumption',
         'color': const Color(0xFF415FFF),
-        'tip': '💡 Add Snapi to the Whitelist in iManager for best results.',
+        'tip': '',
         'hasSettingsButton': true,
         'settingsLabel': 'Open App Settings',
         'settingsIcon': CupertinoIcons.settings,
@@ -155,33 +129,33 @@ class DeviceSetupService {
       return {
         'brand': 'Huawei / Honor',
         'description':
-            'EMUI may restrict Snapi. Enable "Protected App" and Auto-launch for reliable background detection.',
+            '1. Tap on "Power usage details"\n2. Tap "App launch"\n3. Manage manually and enable all',
         'color': const Color(0xFFE40520),
-        'tip': '💡 Enable Auto-launch and Background activity in Manager.',
+        'tip': '',
         'hasSettingsButton': true,
-        'settingsLabel': 'Open Power Manager',
-        'settingsIcon': CupertinoIcons.shield_fill,
+        'settingsLabel': 'Open App Settings',
+        'settingsIcon': CupertinoIcons.settings,
       };
     } else if (manufacturer.contains('samsung')) {
       return {
         'brand': 'Samsung',
         'description':
-            'Set Snapi\'s battery usage to "Unrestricted" so it can detect screenshots reliably in the background.',
+            '1. Tap on "Battery"\n2. Enable "Allow background activity"',
         'color': const Color(0xFF1428A0),
-        'tip': '💡 Ensure Snapi is not in your Sleeping apps list.',
+        'tip': '',
         'hasSettingsButton': true,
-        'settingsLabel': 'Open Battery Settings',
-        'settingsIcon': CupertinoIcons.battery_100,
+        'settingsLabel': 'Open App Settings',
+        'settingsIcon': CupertinoIcons.settings,
       };
     } else {
       return {
         'brand': 'Your Device',
         'description':
-            'Allow Snapi to run in the background so it can detect screenshots reliably.',
+            '1. Tap on "Battery" or "App battery usage"\n2. Enable "Allow background activity"',
         'color': CupertinoColors.activeBlue,
-        'tip': '💡 Avoid strict Battery Saver mode when you need screenshot alerts.',
-        'hasSettingsButton': false,
-        'settingsLabel': 'Open Settings',
+        'tip': '',
+        'hasSettingsButton': true,
+        'settingsLabel': 'Open App Settings',
         'settingsIcon': CupertinoIcons.settings,
       };
     }

@@ -77,7 +77,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
 
   void _centerView(Size viewportSize) {
     if (viewportSize.width == 0 || viewportSize.height == 0) return;
-    const double scale = 0.45;
+    const double scale = 0.25;
     final tx = (viewportSize.width / 2) - (4000.0 * scale);
     final ty = (viewportSize.height / 2) - (4000.0 * scale);
     _transformationController.value = Matrix4.identity()..translate(tx, ty)..scale(scale);
@@ -231,7 +231,17 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                 ),
               ),
 
-              // Floating Menu
+              // Reset Button on the Right Side (Middle, above Layout menu)
+              Positioned(
+                bottom: 385, right: 20,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _draggedId != null ? 0.0 : 1.0,
+                  child: _VisualResetButton(onTap: _resetLayout),
+                ),
+              ),
+
+              // Floating Menu on the Bottom Right
               Positioned(
                 bottom: 110, right: 20,
                 child: AnimatedOpacity(
@@ -246,6 +256,41 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
       ),
     );
   }
+
+  void _resetLayout() async {
+    setState(() {
+      _customOffsets.removeWhere((key, value) => key.startsWith('mode_${_viewMode}_'));
+    });
+    await _saveOffsets();
+    
+    final double scale = 0.25;
+    final Size viewportSize = MediaQuery.of(context).size;
+    final tx = (viewportSize.width / 2) - (4000.0 * scale);
+    final ty = (viewportSize.height / 2) - (4000.0 * scale);
+    
+    final targetMatrix = Matrix4.identity()..translate(tx, ty)..scale(scale);
+    
+    final AnimationController animController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    final Matrix4Tween tween = Matrix4Tween(
+      begin: _transformationController.value,
+      end: targetMatrix,
+    );
+    final Animation<Matrix4> animation = tween.animate(
+      CurvedAnimation(parent: animController, curve: Curves.easeInOutCubic),
+    );
+    animation.addListener(() {
+      _transformationController.value = animation.value;
+    });
+    animController.forward().then((_) => animController.dispose());
+    
+    HapticFeedback.mediumImpact();
+  }
+
+  // _VisualResetButton is defined as a standalone stateful widget at the bottom of the file
+
 
   Widget _buildInstructionCard(bool isDark) {
     return ClipRRect(
@@ -363,7 +408,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         onPanUpdate: (details) {
           setState(() {
             final double scale = _transformationController.value.getMaxScaleOnAxis();
-            _customOffsets['mode_${_viewMode}_$id'] = (_customOffsets['mode_${_viewMode}_$id'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.85;
+            // Reduced to 0.48 for an extremely premium, smooth, and highly controlled feel
+            _customOffsets['mode_${_viewMode}_$id'] = (_customOffsets['mode_${_viewMode}_$id'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.48;
           });
         },
         onPanEnd: (_) {
@@ -442,8 +488,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         onPanUpdate: (details) {
           setState(() {
             final double scale = _transformationController.value.getMaxScaleOnAxis();
-            // Using 0.85 factor for more controlled feel
-            _customOffsets['mode_${_viewMode}_${item.id}'] = (_customOffsets['mode_${_viewMode}_${item.id}'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.85;
+            // Reduced to 0.48 for an extremely premium, smooth, and highly controlled feel
+            _customOffsets['mode_${_viewMode}_${item.id}'] = (_customOffsets['mode_${_viewMode}_${item.id}'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.48;
           });
         },
         onPanEnd: (_) {
@@ -710,4 +756,100 @@ class MindMapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => true;
+}
+
+class _VisualResetButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _VisualResetButton({required this.onTap});
+
+  @override
+  State<_VisualResetButton> createState() => _VisualResetButtonState();
+}
+
+class _VisualResetButtonState extends State<_VisualResetButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _rotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+    
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.85).chain(CurveTween(curve: Curves.easeOut)), weight: 25),
+      TweenSequenceItem(tween: Tween<double>(begin: 0.85, end: 1.08).chain(CurveTween(curve: Curves.elasticOut)), weight: 75),
+    ]).animate(_controller);
+
+    _rotationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutBack),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    _controller.forward(from: 0.0);
+    widget.onTap();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _handleTap,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    CupertinoColors.activeBlue,
+                    Color(0xFF0056C6),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: CupertinoColors.white.withOpacity(0.15),
+                  width: 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: CupertinoColors.activeBlue.withOpacity(0.35),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: RotationTransition(
+                  turns: _rotationAnimation,
+                  child: const Icon(
+                    CupertinoIcons.refresh_bold,
+                    color: CupertinoColors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

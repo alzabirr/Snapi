@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
+import '../widgets/custom_delete_dialog.dart';
 
 class RecycleBinScreen extends StatefulWidget {
   const RecycleBinScreen({super.key});
@@ -39,65 +40,45 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
   }
 
   void _permanentlyDeleteItem(ScreenshotItem item) {
-    showCupertinoDialog(
+    showCustomDeleteDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Delete Permanently?'),
-        content: const Text('This capture will be deleted forever.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            child: const Text('Delete'),
-            onPressed: () async {
-              await DatabaseService.permanentlyDeleteItem(item);
-              if (mounted) {
-                Navigator.pop(context);
-                _loadItems();
-              }
-            },
-          ),
-        ],
-      ),
+      title: 'Delete permanently',
+      subtitle: 'This capture will be deleted forever.',
+      deleteButtonText: 'Delete',
+      onDelete: () async {
+        await DatabaseService.permanentlyDeleteItem(item);
+        _loadItems();
+      },
     );
   }
 
   void _emptyRecycleBin() {
     if (_deletedItems.isEmpty) return;
     
-    showCupertinoDialog(
+    showCustomDeleteDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Empty Recycle Bin?'),
-        content: const Text('All items in the recycle bin will be permanently deleted.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            child: const Text('Empty Bin'),
-            onPressed: () async {
-              await DatabaseService.emptyRecycleBin();
-              if (mounted) {
-                Navigator.pop(context);
-                _loadItems();
-              }
-            },
-          ),
-        ],
-      ),
+      title: 'Empty Recycle Bin',
+      subtitle: 'All items in the recycle bin will be permanently deleted.',
+      deleteButtonText: 'Empty Bin',
+      onDelete: () async {
+        await DatabaseService.emptyRecycleBin();
+        _loadItems();
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     return CupertinoPageScaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
       navigationBar: CupertinoNavigationBar(
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context),
+          child: const Icon(CupertinoIcons.chevron_back, size: 28),
+        ),
+        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
         middle: const Text('Recycle Bin'),
         trailing: _deletedItems.isNotEmpty 
           ? CupertinoButton(

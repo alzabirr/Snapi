@@ -7,13 +7,14 @@ import '../services/database_service.dart';
 import '../widgets/screenshot_popup.dart';
 
 class AddScreen extends StatefulWidget {
-  const AddScreen({super.key});
+  final bool isActive;
+  const AddScreen({super.key, this.isActive = false});
 
   @override
   State<AddScreen> createState() => _AddScreenState();
 }
 
-class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMixin {
+class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   Map<String, List<AssetEntity>> _groupedAssets = {};
   List<String> _headers = [];
   List<AssetPathEntity> _albums = [];
@@ -23,7 +24,29 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadAlbums();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.isActive) {
+      _loadAlbums();
+    }
+  }
+
+  @override
+  void didUpdateWidget(AddScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      _loadAlbums();
+    }
   }
 
   String _getMonthName(int month) {

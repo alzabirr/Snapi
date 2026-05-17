@@ -72,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _checkPermissions() async {
     try {
-      final state = await PhotoManager.requestPermissionExtend();
+      final state = await PhotoManager.getPermissionState(requestOption: const PermissionRequestOption());
       final phPhotos = await Permission.photos.status;
       
       // Fallback: Check actual asset count

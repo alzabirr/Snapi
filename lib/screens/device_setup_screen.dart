@@ -106,7 +106,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
       );
     }
 
-    final Color accent = _guide!['color'] as Color;
+    final Color accent = CupertinoTheme.of(context).primaryColor;
     final String brand = _guide!['brand'] as String;
     final String description = _guide!['description'] as String;
     final String tip = _guide!['tip'] as String;
@@ -137,20 +137,21 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 36),
+                      const SizedBox(height: 20),
 
                       // ── Header icon + titles ──────────────────────────────
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Container(
-                            width: 56,
-                            height: 56,
+                            width: 60,
+                            height: 60,
                             decoration: BoxDecoration(
-                              color: accent.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(16),
+                              color: accent.withOpacity(0.12),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: accent.withOpacity(0.2), width: 1.5),
                             ),
-                            child: Icon(CupertinoIcons.shield_fill,
-                                color: accent, size: 28),
+                            child: Icon(CupertinoIcons.shield_fill, color: accent, size: 28),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -161,19 +162,30 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                                   'One Last Step',
                                   style: TextStyle(
                                     fontSize: 26,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -1.0,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.5,
                                     color: labelColor,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  brand,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: accent,
-                                  ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: accent.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        brand,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: accent,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -183,19 +195,6 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
 
                       const SizedBox(height: 20),
 
-                      // ── Description ───────────────────────────────────────
-                      Text(
-                        description,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: CupertinoColors.secondaryLabel
-                              .resolveFrom(context),
-                          height: 1.55,
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-
                       // ── Step 1: Grant Battery Permission ──────────────────
                       _StepCard(
                         step: 1,
@@ -204,8 +203,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                         cardColor: cardColor,
                         labelColor: labelColor,
                         title: 'Grant Background Permission',
-                        subtitle:
-                            'Snapi needs this to detect screenshots at any time.',
+                        subtitle: 'Required for auto-detection.',
                         isDone: _permissionGranted,
                         child: _permissionGranted
                             ? _DoneRow()
@@ -223,7 +221,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
 
                       // ── Step 2: Open Device Settings (OEM only) ───────────
                       if (hasSettingsButton) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         _StepCard(
                           step: 2,
                           accent: accent,
@@ -231,8 +229,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                           cardColor: cardColor,
                           labelColor: labelColor,
                           title: 'Open Device Settings',
-                          subtitle:
-                              "We'll take you directly to the right page — just enable it there.",
+                          subtitle: description + (tip.isNotEmpty ? '\n\n' + tip : ''),
                           isDone: false,
                           child: _ActionButton(
                             label: settingsLabel,
@@ -247,39 +244,6 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                         ),
                       ],
 
-                      const SizedBox(height: 20),
-
-                      // ── Tip box ───────────────────────────────────────────
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 13),
-                        decoration: BoxDecoration(
-                          color: accent.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(14),
-                          border:
-                              Border.all(color: accent.withOpacity(0.18)),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('💡', style: TextStyle(fontSize: 15)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                tip.replaceFirst('💡 ', ''),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: accent,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.45,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -291,23 +255,27 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
                 child: Column(
                   children: [
-                    SizedBox(
-                      width: double.infinity,
-                      height: 58,
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        color: _permissionGranted
-                            ? accent
-                            : accent.withOpacity(0.35),
-                        borderRadius: BorderRadius.circular(18),
-                        onPressed: _permissionGranted ? _handleDone : null,
-                        child: Text(
-                          "All Done — Let's Go!",
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: CupertinoColors.white,
-                            letterSpacing: -0.3,
+                    GestureDetector(
+                      onTap: _permissionGranted ? _handleDone : null,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: double.infinity,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          gradient: _permissionGranted
+                              ? LinearGradient(colors: [accent, accent.withOpacity(0.8)])
+                              : LinearGradient(colors: [CupertinoColors.systemGrey4.resolveFrom(context), CupertinoColors.systemGrey4.resolveFrom(context)]),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "All Done — Let's Go!",
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: CupertinoColors.white,
+                              letterSpacing: -0.3,
+                            ),
                           ),
                         ),
                       ),
@@ -364,17 +332,34 @@ class _StepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(18),
+        color: isDone ? CupertinoColors.systemGreen.withOpacity(0.05) : cardColor,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDone
-              ? CupertinoColors.systemGreen.withOpacity(0.4)
-              : accent.withOpacity(0.15),
-          width: 1,
+              ? CupertinoColors.systemGreen.withOpacity(0.5)
+              : accent.withOpacity(0.2),
+          width: 1.5,
         ),
+        boxShadow: isDone
+            ? [
+                BoxShadow(
+                  color: CupertinoColors.systemGreen.withOpacity(0.15),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                )
+              ]
+            : [
+                BoxShadow(
+                  color: CupertinoColors.black.withOpacity(isDark ? 0.2 : 0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                )
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,15 +408,50 @@ class _StepCard extends StatelessWidget {
           const SizedBox(height: 5),
           Padding(
             padding: const EdgeInsets.only(left: 38),
-            child: Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 13,
-                color:
-                    CupertinoColors.secondaryLabel.resolveFrom(context),
-                height: 1.45,
-              ),
-            ),
+            child: subtitle.contains('\n')
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: subtitle.split('\n').where((line) => line.trim().isNotEmpty).map((line) {
+                      final cleanLine = line.replaceFirst(RegExp(r'^\d+\.\s*'), '');
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 5, right: 10),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: accent.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                cleanLine,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  )
+                : Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                      height: 1.45,
+                    ),
+                  ),
           ),
           const SizedBox(height: 14),
           child,

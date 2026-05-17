@@ -16,14 +16,6 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const CategoryScreen(),
-    const VisualScreen(),
-    const SettingsScreen(),
-    const AddScreen(), // The separate + button will switch to this or show it
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +29,13 @@ class _MainScreenState extends State<MainScreen> {
           // Main Content
           IndexedStack(
             index: _currentIndex,
-            children: _screens,
+            children: [
+              const HomeScreen(),
+              const CategoryScreen(),
+              const VisualScreen(),
+              const SettingsScreen(),
+              AddScreen(isActive: _currentIndex == 4),
+            ],
           ),
           
           // Custom Floating Navigation Bar (Matching Image)

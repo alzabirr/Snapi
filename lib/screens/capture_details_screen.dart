@@ -10,6 +10,7 @@ import '../services/database_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/screenshot_popup.dart';
 import '../services/ocr_service.dart';
+import '../widgets/custom_delete_dialog.dart';
 
 class CaptureDetailsScreen extends StatefulWidget {
   final ScreenshotItem item;
@@ -227,26 +228,17 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
   }
 
   void _deleteItem() {
-    showCupertinoDialog(
+    showCustomDeleteDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Delete Capture'),
-        content: const Text('Are you sure you want to delete this capture?'),
-        actions: [
-          CupertinoDialogAction(child: const Text('Cancel'), onPressed: () => Navigator.pop(context)),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () async {
-              await DatabaseService.deleteItem(_currentItem);
-              if (mounted) {
-                Navigator.pop(context);
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete media',
+      subtitle: 'Are you sure you want to delete this photo?',
+      deleteButtonText: 'Delete',
+      onDelete: () async {
+        await DatabaseService.deleteItem(_currentItem);
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      },
     );
   }
 

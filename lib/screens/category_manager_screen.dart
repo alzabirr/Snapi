@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/database_service.dart';
+import '../widgets/custom_delete_dialog.dart';
 
 class CategoryManagerScreen extends StatefulWidget {
   const CategoryManagerScreen({super.key});
@@ -90,36 +91,32 @@ class _CategoryManagerScreenState extends State<CategoryManagerScreen> {
       return;
     }
 
-    showCupertinoDialog(
+    showCustomDeleteDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Delete Folder?'),
-        content: Text('Are you sure you want to delete "${_categories[index]}"? Items in this folder will move to "Uncategorized".'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            child: const Text('Delete'),
-            onPressed: () {
-              setState(() {
-                _categories.removeAt(index);
-              });
-              _saveCategories();
-              Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
+      title: 'Delete Folder',
+      subtitle: 'Are you sure you want to delete "${_categories[index]}"? Items in this folder will move to "Uncategorized".',
+      deleteButtonText: 'Delete',
+      onDelete: () {
+        setState(() {
+          _categories.removeAt(index);
+        });
+        _saveCategories();
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     return CupertinoPageScaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
       navigationBar: CupertinoNavigationBar(
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context),
+          child: const Icon(CupertinoIcons.chevron_back, size: 28),
+        ),
+        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
         middle: const Text('Manage Folders'),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,

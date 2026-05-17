@@ -58,7 +58,7 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> with 
       try {
         await Future.delayed(const Duration(seconds: 1));
         
-        final state = await PhotoManager.requestPermissionExtend();
+        final state = await PhotoManager.getPermissionState(requestOption: const PermissionRequestOption());
         final phStatus = await Permission.photos.status;
         
         debugPrint('DEBUG: Resume Check - PM State: $state, PH Status: $phStatus');
@@ -489,13 +489,13 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> with 
                                           if (!_isGalleryLimited && !_isGalleryDenied) ...[
                                             // PREMIUM HAPPY STATE
                                             Container(
-                                              padding: const EdgeInsets.all(24),
+                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                               decoration: BoxDecoration(
                                                 gradient: LinearGradient(
                                                   colors: [CupertinoColors.activeBlue.withOpacity(0.05), CupertinoColors.activeBlue.withOpacity(0.12)],
                                                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                                                 ),
-                                                borderRadius: BorderRadius.circular(32),
+                                                borderRadius: BorderRadius.circular(16),
                                                 border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.2), width: 1.5),
                                               ),
                                               child: Column(
@@ -503,25 +503,25 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> with 
                                                   const Text(
                                                     'I need full access to your gallery to find and organize your screenshots automatically.',
                                                     textAlign: TextAlign.center,
-                                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: CupertinoColors.secondaryLabel, height: 1.3),
+                                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: CupertinoColors.secondaryLabel, height: 1.25),
                                                   ),
-                                                  const SizedBox(height: 24),
+                                                  const SizedBox(height: 10),
                                                   GestureDetector(
                                                     onTap: _handleNext,
                                                     child: Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                                       width: double.infinity,
                                                       decoration: BoxDecoration(
                                                         gradient: const LinearGradient(colors: [Color(0xFF007AFF), Color(0xFF0051FF)]),
-                                                        borderRadius: BorderRadius.circular(20),
-                                                        boxShadow: [BoxShadow(color: CupertinoColors.activeBlue.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 8))],
+                                                        borderRadius: BorderRadius.circular(12),
+                                                        boxShadow: [BoxShadow(color: CupertinoColors.activeBlue.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
                                                       ),
                                                       child: Row(
                                                         mainAxisAlignment: MainAxisAlignment.center,
                                                         children: const [
-                                                          Icon(CupertinoIcons.checkmark_circle_fill, color: CupertinoColors.white, size: 20),
-                                                          SizedBox(width: 12),
-                                                          Text('Allow All Access', style: TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w800, fontSize: 17)),
+                                                          Icon(CupertinoIcons.checkmark_circle_fill, color: CupertinoColors.white, size: 16),
+                                                          SizedBox(width: 6),
+                                                          Text('Allow All Access', style: TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w800, fontSize: 14)),
                                                         ],
                                                       ),
                                                     ),
@@ -532,61 +532,61 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> with 
                                           ] else ...[
                                             // FULL PAGE PREMIUM SAD STATE (For both LIMITED and DENIED)
                                             Container(
-                                              padding: const EdgeInsets.all(32),
+                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                                               width: double.infinity,
                                               decoration: BoxDecoration(
                                                 gradient: LinearGradient(
                                                   colors: [CupertinoColors.systemRed.withOpacity(0.15), CupertinoColors.systemRed.withOpacity(0.25)],
                                                   begin: Alignment.topCenter, end: Alignment.bottomCenter,
                                                 ),
-                                                borderRadius: BorderRadius.circular(32),
-                                                border: Border.all(color: CupertinoColors.systemRed.withOpacity(0.4), width: 2),
+                                                borderRadius: BorderRadius.circular(24),
+                                                border: Border.all(color: CupertinoColors.systemRed.withOpacity(0.4), width: 1.5),
                                               ),
                                               child: Column(
                                                 mainAxisAlignment: MainAxisAlignment.center,
                                                 children: [
-                                                  const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: CupertinoColors.systemRed, size: 80),
-                                                  const SizedBox(height: 32),
+                                                  const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: CupertinoColors.systemRed, size: 56),
+                                                  const SizedBox(height: 20),
                                                   const Text(
                                                     'ACCESS RESTRICTED',
-                                                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: CupertinoColors.systemRed, letterSpacing: -0.5),
+                                                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: CupertinoColors.systemRed, letterSpacing: -0.5),
                                                   ),
-                                                  const SizedBox(height: 20),
+                                                  const SizedBox(height: 12),
                                                   const Text(
                                                     'Snapi cannot work without Full Gallery Access. Please choose "Allow All" to find your screenshots automatically.',
                                                     textAlign: TextAlign.center,
-                                                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: CupertinoColors.black, height: 1.4),
+                                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: CupertinoColors.black, height: 1.3),
                                                   ),
-                                                  const SizedBox(height: 40),
+                                                  const SizedBox(height: 24),
                                                   Container(
-                                                    padding: const EdgeInsets.all(24),
+                                                    padding: const EdgeInsets.all(16),
                                                     decoration: BoxDecoration(
                                                       color: CupertinoColors.white.withOpacity(0.9),
-                                                      borderRadius: BorderRadius.circular(24),
+                                                      borderRadius: BorderRadius.circular(16),
                                                     ),
                                                     child: Column(
                                                       children: [
                                                         _buildStep(1, 'Tap "Open Settings" below'),
-                                                        const SizedBox(height: 16),
+                                                        const SizedBox(height: 12),
                                                         _buildStep(2, 'Change to "Allow All"'),
-                                                        const SizedBox(height: 16),
+                                                        const SizedBox(height: 12),
                                                         _buildStep(3, 'Come back to Snapi!'),
                                                       ],
                                                     ),
                                                   ),
-                                                  const SizedBox(height: 48),
+                                                  const SizedBox(height: 28),
                                                   GestureDetector(
                                                     onTap: () => openAppSettings(),
                                                     child: Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                                       width: double.infinity,
                                                       decoration: BoxDecoration(
                                                         gradient: const LinearGradient(colors: [CupertinoColors.systemRed, Color(0xFFC00000)]),
-                                                        borderRadius: BorderRadius.circular(20),
-                                                        boxShadow: [BoxShadow(color: CupertinoColors.systemRed.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 10))],
+                                                        borderRadius: BorderRadius.circular(16),
+                                                        boxShadow: [BoxShadow(color: CupertinoColors.systemRed.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 6))],
                                                       ),
                                                       child: const Center(
-                                                        child: Text('Open Settings to Fix Now', style: TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w900, fontSize: 19)),
+                                                        child: Text('Open Settings to Fix Now', style: TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w900, fontSize: 16)),
                                                       ),
                                                     ),
                                                   ),
@@ -602,19 +602,26 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> with 
                                     const SizedBox(height: 30),
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: (page['features'] as List).map((f) {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                                          child: Column(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.all(10),
-                                                decoration: BoxDecoration(color: CupertinoColors.systemGrey6, borderRadius: BorderRadius.circular(12)),
-                                                child: Icon(f['icon'] as IconData, size: 22, color: CupertinoColors.activeBlue),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(f['text'] as String, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
-                                            ],
+                                        return Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                            child: Column(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(10),
+                                                  decoration: BoxDecoration(color: CupertinoColors.systemGrey6, borderRadius: BorderRadius.circular(12)),
+                                                  child: Icon(f['icon'] as IconData, size: 22, color: CupertinoColors.activeBlue),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  f['text'] as String,
+                                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel, height: 1.2),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         );
                                       }).toList(),

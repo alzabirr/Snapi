@@ -6,6 +6,7 @@ import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import 'capture_details_screen.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../widgets/custom_delete_dialog.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -262,31 +263,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
   void _confirmDeleteFolder(String category) {
     if (category == 'Uncategorized') return;
 
-    showCupertinoDialog(
+    showCustomDeleteDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Delete Folder?'),
-        content: Text('All captures in "$category" will be moved to the Recycle Bin.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () async {
-              await DatabaseService.deleteCategory(category);
-              setState(() {
-                _allCategories.remove(category);
-                _groupedItems.remove(category);
-              });
-              await _saveCategories();
-              if (mounted) Navigator.pop(context);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Folder',
+      subtitle: 'All screenshots inside "$category" will be deleted.',
+      deleteButtonText: 'Delete',
+      onDelete: () async {
+        await DatabaseService.deleteCategory(category);
+        setState(() {
+          _allCategories.remove(category);
+          _groupedItems.remove(category);
+        });
+        await _saveCategories();
+      },
     );
   }
 
@@ -330,7 +319,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 crossAxisCount: 3,
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 12,
-                childAspectRatio: 0.75,
+                childAspectRatio: 0.70,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
@@ -526,7 +515,7 @@ class _FolderCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Text(
             category,
             textAlign: TextAlign.center,
