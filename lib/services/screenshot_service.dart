@@ -66,7 +66,7 @@ class ScreenshotService {
         if (latest.id == _lastImageId) break; // Reached already handled assets
         
         final DateTime now = DateTime.now();
-        final bool isVeryRecent = now.difference(latest.createDateTime).inSeconds.abs() < 30;
+        final bool isVeryRecent = now.difference(latest.createDateTime).inSeconds.abs() < 300;
 
         // On first run, we only care about screenshots taken while the app was starting
         if (isInitial && !isVeryRecent) continue;

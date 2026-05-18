@@ -12,6 +12,9 @@ import 'database_service.dart';
 @pragma('vm:entry-point')
 class BackgroundService {
   static Future<void> initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled = prefs.getBool('is_monitoring_enabled') ?? true;
+
     final service = FlutterBackgroundService();
 
     // Create notification channel first
@@ -48,7 +51,7 @@ class BackgroundService {
         isForegroundMode: true,
         notificationChannelId: 'snapshot_memo_background',
         initialNotificationTitle: 'Snapi',
-        initialNotificationContent: 'Monitoring for screenshots...',
+        initialNotificationContent: 'Snapi is monitoring',
         foregroundServiceNotificationId: 888,
       ),
       iosConfiguration: IosConfiguration(
@@ -71,43 +74,101 @@ class BackgroundService {
   @pragma('vm:entry-point')
   static void onStart(ServiceInstance service) async {
     DartPluginRegistrant.ensureInitialized();
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled = prefs.getBool('is_monitoring_enabled') ?? true;
     
-    // Initialize DB in this isolate
-    try {
-      await DatabaseService.init();
-      // Ignore permission check in background isolate for PhotoManager
-      PhotoManager.setIgnorePermissionCheck(true);
-    } catch (e) {
-      debugPrint('Background Service: DB Init failed: $e');
-    }
-    
-    bool showNotifications = true;
-    
-    // Listen for config updates from the main app
-    service.on('updateConfig').listen((event) {
-      if (event != null && event['showNotifications'] != null) {
-        showNotifications = event['showNotifications'];
-        debugPrint('Background Service: Notifications updated to $showNotifications');
-      }
-    });
-
-    // Initial load of settings
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      showNotifications = prefs.getBool('show_screenshot_notifications') ?? true;
-    } catch (e) {
-      debugPrint('Background Service: Failed to load initial settings: $e');
-    }
-
-    // Re-initialize notifications in this isolate (CRITICAL: must call initialize())
+    // Initialize notifications early for both starting and stopping
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
-
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initSettings =
         InitializationSettings(android: androidInit);
     await flutterLocalNotificationsPlugin.initialize(initSettings);
+
+    if (!isEnabled) {
+      if (service is AndroidServiceInstance) {
+        service.setAsBackgroundService();
+      }
+      await flutterLocalNotificationsPlugin.cancel(888);
+    } else {
+      if (service is AndroidServiceInstance) {
+        service.setAsForegroundService();
+        service.setForegroundNotificationInfo(
+          title: 'Snapi',
+          content: 'Snapi is monitoring',
+        );
+      }
+    }
+    
+    // Initialize DB in this isolate
+    try {
+      await DatabaseService.init();
+      PhotoManager.setIgnorePermissionCheck(true);
+    } catch (e) {
+      debugPrint('Background Service: DB Init failed: $e');
+    }
+    
+    bool showNotifications = prefs.getBool('show_screenshot_notifications') ?? true;
+    Timer? backgroundTimer;
+    
+    service.on('updateConfig').listen((event) async {
+      if (event != null) {
+        if (event['showNotifications'] != null) {
+          showNotifications = event['showNotifications'];
+        }
+        if (event['is_monitoring_enabled'] != null) {
+          final isEnabled = event['is_monitoring_enabled'];
+          if (!isEnabled) {
+            if (service is AndroidServiceInstance) {
+              service.setAsBackgroundService();
+            }
+            await flutterLocalNotificationsPlugin.cancel(888);
+          } else {
+            if (service is AndroidServiceInstance) {
+              service.setAsForegroundService();
+              service.setForegroundNotificationInfo(
+                title: 'Snapi',
+                content: 'Snapi is monitoring',
+              );
+            }
+          }
+        }
+      }
+    });
+
+    service.on('stopService').listen((event) async {
+      backgroundTimer?.cancel();
+      if (service is AndroidServiceInstance) {
+        service.setAsBackgroundService(); // This demotes the service and removes the foreground notification
+      }
+      await flutterLocalNotificationsPlugin.cancel(888);
+      service.stopSelf();
+    });
+
+    // Force the foreground service notification to be ongoing and non-swipeable
+    try {
+      await flutterLocalNotificationsPlugin.show(
+        888, // Must match foregroundServiceNotificationId
+        'Snapi',
+        'Snapi is monitoring',
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'snapshot_memo_background',
+            'Background Monitoring',
+            channelDescription: 'Used for detecting screenshots in the background',
+            importance: Importance.low,
+            priority: Priority.low,
+            ongoing: true,
+            autoCancel: false,
+            onlyAlertOnce: true,
+            showWhen: false,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Background Service: Failed to show persistent notification: $e');
+    }
 
     // Recreate notification channel in this isolate (required on some devices)
     if (defaultTargetPlatform == TargetPlatform.android) {
@@ -124,7 +185,47 @@ class BackgroundService {
     }
 
     // Periodic check logic (Optimized for 24/7 stability)
-    Timer.periodic(const Duration(seconds: 2), (timer) async {
+    backgroundTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      // Fallback check: if event channel is broken, read from SharedPreferences directly
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.reload();
+        final isEnabled = prefs.getBool('is_monitoring_enabled') ?? true;
+        if (!isEnabled) {
+          if (service is AndroidServiceInstance) {
+            service.setAsBackgroundService();
+          }
+          await flutterLocalNotificationsPlugin.cancel(888);
+        } else {
+          if (service is AndroidServiceInstance) {
+            service.setAsForegroundService();
+          }
+          // Re-show/refresh the persistent notification to ensure it's never gone
+          try {
+            await flutterLocalNotificationsPlugin.show(
+              888, // Must match foregroundServiceNotificationId
+              'Snapi',
+              'Snapi is monitoring',
+              const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'snapshot_memo_background',
+                  'Background Monitoring',
+                  channelDescription: 'Used for detecting screenshots in the background',
+                  importance: Importance.low,
+                  priority: Priority.low,
+                  ongoing: true,
+                  autoCancel: false,
+                  onlyAlertOnce: true,
+                  showWhen: false,
+                ),
+              ),
+            );
+          } catch (_) {}
+        }
+      } catch (e) {
+        debugPrint('Fallback check error: $e');
+      }
+
       await _checkForNewScreenshot(flutterLocalNotificationsPlugin, showNotifications);
     });
   }
@@ -172,7 +273,7 @@ class BackgroundService {
         if (asset.id == _lastSeenAssetId) break; // Already handled
 
         final DateTime now = DateTime.now();
-        final bool isVeryRecent = now.difference(asset.createDateTime).inSeconds.abs() < 60;
+        final bool isVeryRecent = now.difference(asset.createDateTime).inSeconds.abs() < 300;
 
         if (isVeryRecent && _isScreenshot(asset) && showNotifications) {
           // Check if already saved in database

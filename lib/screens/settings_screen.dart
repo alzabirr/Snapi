@@ -26,6 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   int _deletedCaptures = 0;
   bool _showScreenshotNotifications = true;
   bool _autoSmartFolders = true;
+  bool _isMonitoring = true;
   PermissionStatus _micStatus = PermissionStatus.denied;
   PermissionStatus _notificationStatus = PermissionStatus.denied;
   PermissionState _galleryStatus = PermissionState.denied;
@@ -57,12 +58,15 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     final gallery = await PhotoManager.getPermissionState(requestOption: const PermissionRequestOption());
     final phPhotos = await Permission.photos.status;
     final assetCount = await PhotoManager.getAssetCount();
+    final service = FlutterBackgroundService();
+    final isRunning = await service.isRunning();
     
     setState(() {
       _totalCaptures = DatabaseService.getAllItems().length;
       _deletedCaptures = DatabaseService.getDeletedItems().length;
       _showScreenshotNotifications = prefs.getBool('show_screenshot_notifications') ?? true;
       _autoSmartFolders = prefs.getBool('auto_smart_folders') ?? true;
+      _isMonitoring = prefs.getBool('is_monitoring_enabled') ?? true;
       _micStatus = mic;
       _notificationStatus = notif;
       _galleryStatus = gallery;
@@ -100,6 +104,30 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       _autoSmartFolders = value;
     });
   }
+
+  Future<void> _toggleMonitoring(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_monitoring_enabled', value);
+    
+    final service = FlutterBackgroundService();
+    final isRunning = await service.isRunning();
+    if (!isRunning) {
+      await service.startService();
+    }
+    
+    service.invoke('updateConfig', {'is_monitoring_enabled': value});
+    
+    if (!value) {
+      // Force cancel notification from main UI immediately
+      final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+      await flutterLocalNotificationsPlugin.cancel(888);
+    }
+    
+    setState(() {
+      _isMonitoring = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
@@ -242,6 +270,14 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
               header: const Text('App Permissions'),
               children: [
+                CupertinoListTile(
+                  title: const Text('Background Monitoring'),
+                  leading: _buildIOSIcon(CupertinoIcons.bolt_fill, CupertinoColors.systemYellow),
+                  trailing: CupertinoSwitch(
+                    value: _isMonitoring,
+                    onChanged: _toggleMonitoring,
+                  ),
+                ),
                 CupertinoListTile(
                   title: const Text('Screenshot Detect Alert'),
                   leading: _buildIOSIcon(CupertinoIcons.eye_fill, CupertinoColors.systemTeal),
