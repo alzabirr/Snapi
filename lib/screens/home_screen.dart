@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _instructionIndex = 0;
   late final Timer _instructionTimer;
   bool _setupSkipped = false;
+  bool _isBatteryOptimizationIgnored = true;
   bool _galleryPermissionLimited = false;
   bool _galleryPermissionDenied = false;
   final List<String> _instructions = [
@@ -80,8 +81,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       
       debugPrint('DEBUG: Home Screen - PM: $state, PH: $phPhotos, Count: $assetCount');
       
+      final isBatteryIgnored = await DeviceSetupService.isBatteryOptimizationIgnored();
+      
       if (mounted) {
         setState(() {
+          _isBatteryOptimizationIgnored = isBatteryIgnored;
           // It's limited if:
           // 1. Library explicitly says so
           // 2. OR OS says granted but we only see a tiny number of photos (suspicious on Android 14)
@@ -203,6 +207,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             physics: const BouncingScrollPhysics(),
             slivers: [
               CupertinoSliverNavigationBar(
+                transitionBetweenRoutes: false,
                 largeTitle: Text(
                   'My Captures',
                   style: TextStyle(
@@ -317,8 +322,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
 
-              // Reminder banner for users who skipped setup
-              if (_setupSkipped && !_galleryPermissionDenied && !_galleryPermissionLimited)
+              // Reminder banner for users who skipped setup or haven't optimized battery
+              if ((_setupSkipped || !_isBatteryOptimizationIgnored) && !_galleryPermissionDenied && !_galleryPermissionLimited)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -330,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             builder: (_) => DeviceSetupScreen(
                               onDone: () {
                                 Navigator.pop(context);
-                                setState(() => _setupSkipped = false);
+                                _checkPermissions();
                               },
                             ),
                           ),

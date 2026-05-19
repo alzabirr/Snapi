@@ -47,7 +47,7 @@ class BackgroundService {
     await service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
-        autoStart: true,
+        autoStart: isEnabled,
         isForegroundMode: true,
         notificationChannelId: 'snapshot_memo_background',
         initialNotificationTitle: 'Snapi',
@@ -55,14 +55,16 @@ class BackgroundService {
         foregroundServiceNotificationId: 888,
       ),
       iosConfiguration: IosConfiguration(
-        autoStart: true,
+        autoStart: isEnabled,
         onForeground: onStart,
         onBackground: onIosBackground,
       ),
     );
     
     // Start it explicitly just in case autoStart fails
-    await service.startService();
+    if (isEnabled) {
+      await service.startService();
+    }
   }
 
   @pragma('vm:entry-point')
@@ -91,6 +93,8 @@ class BackgroundService {
         service.setAsBackgroundService();
       }
       await flutterLocalNotificationsPlugin.cancel(888);
+      service.stopSelf();
+      return;
     } else {
       if (service is AndroidServiceInstance) {
         service.setAsForegroundService();
@@ -112,18 +116,37 @@ class BackgroundService {
     bool showNotifications = prefs.getBool('show_screenshot_notifications') ?? true;
     Timer? backgroundTimer;
     
+    // Track the running state in memory instead of reading disk every tick
+    bool isCurrentlyEnabled = isEnabled;
+    int tickCount = 0;
+    
+    // Use PhotoManager's native ContentObserver for battery-friendly, event-driven detection
+    PhotoManager.addChangeCallback((call) async {
+      if (isCurrentlyEnabled) {
+        await _checkForNewScreenshot(flutterLocalNotificationsPlugin, showNotifications);
+      }
+    });
+    PhotoManager.startChangeNotify();
+
     service.on('updateConfig').listen((event) async {
       if (event != null) {
         if (event['showNotifications'] != null) {
           showNotifications = event['showNotifications'];
         }
         if (event['is_monitoring_enabled'] != null) {
-          final isEnabled = event['is_monitoring_enabled'];
-          if (!isEnabled) {
+          isCurrentlyEnabled = event['is_monitoring_enabled'];
+          if (!isCurrentlyEnabled) {
             if (service is AndroidServiceInstance) {
               service.setAsBackgroundService();
             }
-            await flutterLocalNotificationsPlugin.cancel(888);
+            try {
+              await flutterLocalNotificationsPlugin.cancel(888);
+            } catch (e) {
+              debugPrint('Error canceling notification: $e');
+            }
+            service.stopSelf();
+            backgroundTimer?.cancel();
+            PhotoManager.stopChangeNotify();
           } else {
             if (service is AndroidServiceInstance) {
               service.setAsForegroundService();
@@ -132,6 +155,30 @@ class BackgroundService {
                 content: 'Snapi is monitoring',
               );
             }
+            PhotoManager.startChangeNotify();
+            // Bring the notification back since we cancelled it when disabled
+            try {
+              await flutterLocalNotificationsPlugin.show(
+                888,
+                'Snapi',
+                'Snapi is monitoring',
+                const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                    'snapshot_memo_background',
+                    'Background Monitoring',
+                    channelDescription: 'Used for detecting screenshots in the background',
+                    importance: Importance.low,
+                    priority: Priority.low,
+                    ongoing: true,
+                    autoCancel: false,
+                    onlyAlertOnce: true,
+                    showWhen: false,
+                  ),
+                ),
+              );
+            } catch (e) {
+              debugPrint('Error showing notification: $e');
+            }
           }
         }
       }
@@ -139,10 +186,15 @@ class BackgroundService {
 
     service.on('stopService').listen((event) async {
       backgroundTimer?.cancel();
+      PhotoManager.stopChangeNotify();
       if (service is AndroidServiceInstance) {
-        service.setAsBackgroundService(); // This demotes the service and removes the foreground notification
+        service.setAsBackgroundService();
       }
-      await flutterLocalNotificationsPlugin.cancel(888);
+      try {
+        await flutterLocalNotificationsPlugin.cancel(888);
+      } catch (e) {
+        debugPrint('Error canceling notification: $e');
+      }
       service.stopSelf();
     });
 
@@ -170,63 +222,64 @@ class BackgroundService {
       debugPrint('Background Service: Failed to show persistent notification: $e');
     }
 
-    // Recreate notification channel in this isolate (required on some devices)
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      final androidPlugin = flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-      
-      const AndroidNotificationChannel capturesChannel = AndroidNotificationChannel(
-        'snapshot_memo_captures',
-        'New Screenshot Captures',
-        description: 'Alerts when a new screenshot is detected',
-        importance: Importance.max,
-      );
-      await androidPlugin?.createNotificationChannel(capturesChannel);
-    }
+    // A low-impact 10-second timer to ensure notification stays alive and to provide a fallback
+    backgroundTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+      if (!isCurrentlyEnabled) return;
 
-    // Periodic check logic (Optimized for 24/7 stability)
-    backgroundTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      // Fallback check: if event channel is broken, read from SharedPreferences directly
+      tickCount++;
+      
+      // Ensure notification is un-clearable (revive it if swiped away)
       try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.reload();
-        final isEnabled = prefs.getBool('is_monitoring_enabled') ?? true;
-        if (!isEnabled) {
-          if (service is AndroidServiceInstance) {
-            service.setAsBackgroundService();
-          }
-          await flutterLocalNotificationsPlugin.cancel(888);
-        } else {
-          if (service is AndroidServiceInstance) {
-            service.setAsForegroundService();
-          }
-          // Re-show/refresh the persistent notification to ensure it's never gone
-          try {
-            await flutterLocalNotificationsPlugin.show(
-              888, // Must match foregroundServiceNotificationId
-              'Snapi',
-              'Snapi is monitoring',
-              const NotificationDetails(
-                android: AndroidNotificationDetails(
-                  'snapshot_memo_background',
-                  'Background Monitoring',
-                  channelDescription: 'Used for detecting screenshots in the background',
-                  importance: Importance.low,
-                  priority: Priority.low,
-                  ongoing: true,
-                  autoCancel: false,
-                  onlyAlertOnce: true,
-                  showWhen: false,
-                ),
+        final activeNotifs = await flutterLocalNotificationsPlugin.getActiveNotifications();
+        final hasNotification = activeNotifs.any((n) => n.id == 888);
+        
+        if (!hasNotification) {
+          await flutterLocalNotificationsPlugin.show(
+            888,
+            'Snapi',
+            'Snapi is monitoring',
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'snapshot_memo_background',
+                'Background Monitoring',
+                channelDescription: 'Used for detecting screenshots in the background',
+                importance: Importance.low,
+                priority: Priority.low,
+                ongoing: true,
+                autoCancel: false,
+                onlyAlertOnce: true,
+                showWhen: false,
               ),
-            );
-          } catch (_) {}
+            ),
+          );
         }
-      } catch (e) {
-        debugPrint('Fallback check error: $e');
+      } catch (_) {}
+
+      // Fallback state check once every ~15 minutes to verify IPC didn't miss a stop signal
+      if (tickCount % 90 == 0) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.reload();
+          isCurrentlyEnabled = prefs.getBool('is_monitoring_enabled') ?? true;
+          if (!isCurrentlyEnabled) {
+            if (service is AndroidServiceInstance) {
+              service.setAsBackgroundService();
+            }
+            try { await flutterLocalNotificationsPlugin.cancel(888); } catch (_) {}
+            service.stopSelf();
+            backgroundTimer?.cancel();
+            PhotoManager.stopChangeNotify();
+            return;
+          }
+        } catch (e) {
+          debugPrint('Fallback check error: $e');
+        }
       }
 
-      await _checkForNewScreenshot(flutterLocalNotificationsPlugin, showNotifications);
+      // We do a manual check once a minute (every 6th tick) as a fallback in case ContentObserver missed an event
+      if (tickCount % 6 == 0) {
+        await _checkForNewScreenshot(flutterLocalNotificationsPlugin, showNotifications);
+      }
     });
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:auto_start_flutter/auto_start_flutter.dart' as auto_start;
 
 class DeviceSetupService {
   static const _prefSetupDone = 'device_setup_guide_done';
@@ -54,24 +55,36 @@ class DeviceSetupService {
     await prefs.setBool(_prefSetupSkipped, false);
   }
 
-  /// Step 1: Request standard Android battery optimization permission (shows a system pop-up)
+  /// Check if battery optimization is already disabled/ignored
+  static Future<bool> isBatteryOptimizationIgnored() async {
+    if (!Platform.isAndroid) return true;
+    return await Permission.ignoreBatteryOptimizations.isGranted;
+  }
+
+  /// Step 1: Request standard Android battery optimization permission
   static Future<void> requestBatteryOptimization() async {
     try {
+      await auto_start.disableBatteryOptimization();
+      // Fallback
       await Permission.ignoreBatteryOptimizations.request();
     } catch (e) {
       debugPrint('DeviceSetup: Battery opt request failed: $e');
     }
   }
 
-  /// Step 2: Open specific App Settings page
-  /// This takes the user EXACTLY to Snapi's settings page so they don't have to search for it.
+  /// Step 2: Open specific App Settings page or Auto Start page
   static Future<void> openManufacturerSettings(String manufacturer) async {
     try {
-      // Opens Settings -> Apps -> Snapi
-      // From here the user can directly turn on Autostart or change Battery restrictions.
-      await openAppSettings();
+      // First try to open the exact Auto Start settings page using the package
+      bool success = await auto_start.getAutoStartPermission();
+      
+      // If it fails (some devices don't have a dedicated page), fallback to App Settings
+      if (!success) {
+        await openAppSettings();
+      }
     } catch (e) {
-      debugPrint('DeviceSetup: Failed to open app settings: $e');
+      debugPrint('DeviceSetup: Failed to open settings: $e');
+      await openAppSettings();
     }
   }
 

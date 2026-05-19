@@ -188,6 +188,7 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
             physics: const BouncingScrollPhysics(),
             slivers: [
               CupertinoSliverNavigationBar(
+                transitionBetweenRoutes: false,
                 largeTitle: GestureDetector(
                   onTap: _showAlbumPicker,
                   child: Row(

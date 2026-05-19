@@ -7,6 +7,7 @@ class ScreenshotService {
   static String? _lastImageId;
   static const String _prefLastId = 'last_handled_screenshot_id';
   static final StreamController<AssetEntity> _screenshotStream = StreamController<AssetEntity>.broadcast();
+  static Timer? _fallbackTimer;
 
   static Stream<AssetEntity> get screenshotStream => _screenshotStream.stream;
 
@@ -26,12 +27,13 @@ class ScreenshotService {
     // Initial check to set baseline
     await _checkForNewScreenshot(isInitial: true);
 
-    // Use PhotoManager change notification
+    // Use PhotoManager change notification (Instant, Event-Driven)
     PhotoManager.addChangeCallback(_onGalleryChanged);
     PhotoManager.startChangeNotify();
 
-    // Fallback periodic check while app is active for ultra-fast detection
-    Timer.periodic(const Duration(seconds: 1), (timer) {
+    // Safe fallback heartbeat (every 15s instead of 1s to save CPU)
+    _fallbackTimer?.cancel();
+    _fallbackTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       _checkForNewScreenshot();
     });
   }
@@ -115,6 +117,7 @@ class ScreenshotService {
   }
 
   static void stopMonitoring() {
+    _fallbackTimer?.cancel();
     PhotoManager.removeChangeCallback(_onGalleryChanged);
     PhotoManager.stopChangeNotify();
   }

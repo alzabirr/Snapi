@@ -38,9 +38,11 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
 
   Future<void> _loadGuide() async {
     final manufacturer = await DeviceSetupService.getManufacturer();
+    final permissionGranted = await DeviceSetupService.isBatteryOptimizationIgnored();
     setState(() {
       _manufacturer = manufacturer;
       _guide = DeviceSetupService.getGuideForDevice(manufacturer);
+      _permissionGranted = permissionGranted;
       _isLoading = false;
     });
     _controller.forward();
@@ -49,9 +51,10 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
   Future<void> _handleGrantPermission() async {
     setState(() => _isRequesting = true);
     await DeviceSetupService.requestBatteryOptimization();
+    final permissionGranted = await DeviceSetupService.isBatteryOptimizationIgnored();
     setState(() {
       _isRequesting = false;
-      _permissionGranted = true;
+      _permissionGranted = permissionGranted;
     });
   }
 

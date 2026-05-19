@@ -106,26 +106,29 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Future<void> _toggleMonitoring(bool value) async {
+    setState(() {
+      _isMonitoring = value;
+    });
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_monitoring_enabled', value);
     
     final service = FlutterBackgroundService();
     final isRunning = await service.isRunning();
-    if (!isRunning) {
-      await service.startService();
-    }
     
-    service.invoke('updateConfig', {'is_monitoring_enabled': value});
-    
-    if (!value) {
+    if (value) {
+      if (!isRunning) {
+        await service.startService();
+      }
+      service.invoke('updateConfig', {'is_monitoring_enabled': true});
+    } else {
+      if (isRunning) {
+        service.invoke('stopService');
+      }
       // Force cancel notification from main UI immediately
       final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
       await flutterLocalNotificationsPlugin.cancel(888);
     }
-    
-    setState(() {
-      _isMonitoring = value;
-    });
   }
 
   @override
@@ -136,6 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     return CupertinoPageScaffold(
       backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
       navigationBar: CupertinoNavigationBar(
+        transitionBetweenRoutes: false,
         middle: const Text('Settings'),
         backgroundColor: (isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7)).withOpacity(0.8),
         border: null,
@@ -278,6 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                     onChanged: _toggleMonitoring,
                   ),
                 ),
+
                 CupertinoListTile(
                   title: const Text('Screenshot Detect Alert'),
                   leading: _buildIOSIcon(CupertinoIcons.eye_fill, CupertinoColors.systemTeal),

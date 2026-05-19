@@ -143,6 +143,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     return CupertinoPageScaffold(
       backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
       navigationBar: CupertinoNavigationBar(
+        transitionBetweenRoutes: false,
         middle: Text('VISUAL', style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w800)),
         backgroundColor: (isDark ? Colors.black : Colors.white).withOpacity(0.8),
         border: null,

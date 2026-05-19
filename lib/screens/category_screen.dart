@@ -296,6 +296,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         physics: const BouncingScrollPhysics(),
         slivers: [
           CupertinoSliverNavigationBar(
+            transitionBetweenRoutes: false,
             largeTitle: Text(
               'My Folders',
               style: TextStyle(
@@ -582,6 +583,7 @@ class CategoryDetailScreen extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         slivers: [
           CupertinoSliverNavigationBar(
+            transitionBetweenRoutes: false,
             largeTitle: Text(category),
             backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
             border: null,
