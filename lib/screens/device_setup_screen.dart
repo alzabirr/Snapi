@@ -196,6 +196,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                         ],
                       ),
 
+
                       const SizedBox(height: 20),
 
                       // ── Step 1: Grant Battery Permission ──────────────────
@@ -247,6 +248,70 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                         ),
                       ],
 
+                      const SizedBox(height: 16),
+
+                      // ── Mascot Explanation Card ─────────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF233040) : const Color(0xFFF4F9FF),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: CupertinoColors.activeBlue.withOpacity(0.25),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: CupertinoColors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: CupertinoColors.activeBlue.withOpacity(0.15),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  )
+                                ],
+                              ),
+                              child: Image.asset('assets/snapi.png'),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Why do I need this?',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    "I need this permission to automatically detect and organize your screenshots even when you're not using the app.",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? CupertinoColors.systemGrey : const Color(0xFF555555),
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -255,8 +320,9 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
 
               // ── Bottom CTA ─────────────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     GestureDetector(
                       onTap: _permissionGranted ? _handleDone : null,
@@ -271,13 +337,19 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Center(
-                          child: Text(
-                            "All Done — Let's Go!",
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: CupertinoColors.white,
-                              letterSpacing: -0.3,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16.0),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                "All Done — Let's Go!",
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: CupertinoColors.white,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -501,12 +573,16 @@ class _ActionButton extends StatelessWidget {
                       color: filled ? CupertinoColors.white : accent,
                       size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: filled ? CupertinoColors.white : accent,
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: filled ? CupertinoColors.white : accent,
+                      ),
                     ),
                   ),
                 ],

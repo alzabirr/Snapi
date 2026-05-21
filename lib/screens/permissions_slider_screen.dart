@@ -669,7 +669,7 @@ class _PermissionsSliderScreenState extends State<PermissionsSliderScreen> with 
             
             // Fixed Bottom Button
             Padding(
-              padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
+              padding: const EdgeInsets.fromLTRB(40, 0, 40, 16),
               child: SizedBox(
                 width: double.infinity,
                 height: 60,

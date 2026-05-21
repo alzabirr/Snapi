@@ -391,62 +391,87 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               if (items.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Mascot with Speech Bubble
-                          Stack(
-                            clipBehavior: Clip.none,
-                            alignment: Alignment.center,
-                            children: [
-                              // Speech Bubble with Cycling Text
-                              Positioned(
-                                top: -60,
-                                right: -40,
-                                child: TweenAnimationBuilder<double>(
-                                  key: ValueKey(_instructionIndex),
-                                  tween: Tween(begin: 0.0, end: 1.0),
-                                  duration: const Duration(milliseconds: 600),
-                                  curve: Curves.easeOutBack,
-                                  builder: (context, value, child) {
-                                    return Transform.scale(
-                                      scale: value,
-                                      child: child,
-                                    );
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: CupertinoColors.activeBlue,
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 40), // Push down slightly if needed, or balance out the bottom spacer
+                        // Mascot with Speech Bubble
+                        Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
+                          children: [
+                            // Speech Bubble with Cycling Text
+                            Positioned(
+                              top: -60,
+                              right: -40,
+                              child: TweenAnimationBuilder<double>(
+                                key: ValueKey(_instructionIndex),
+                                tween: Tween(begin: 0.0, end: 1.0),
+                                duration: const Duration(milliseconds: 600),
+                                curve: Curves.easeOutBack,
+                                builder: (context, value, child) {
+                                  return Transform.scale(
+                                    scale: value,
+                                    child: child,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: CupertinoColors.activeBlue,
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
 
-                                    child: Text(
-                                      _instructions[_instructionIndex],
-                                      style: const TextStyle(
-                                        color: CupertinoColors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                                  child: Text(
+                                    _instructions[_instructionIndex],
+                                    style: const TextStyle(
+                                      color: CupertinoColors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ),
                               ),
-                              _FloatingMascot(
-                                child: Image.asset(
-                                  'assets/snapi.png',
-                                  width: 150,
-                                  height: 150,
-                                  fit: BoxFit.contain,
-                                ),
+                            ),
+                            _FloatingMascot(
+                              child: Image.asset(
+                                'assets/snapi.png',
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.contain,
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: const Duration(milliseconds: 1000),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            return Transform.translate(
+                              offset: Offset(0, 20 * (1 - value)),
+                              child: Opacity(
+                                opacity: value,
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Text(
+                            "Take a screenshot anywhere on your phone. Snapi will automatically detect and organize it right here",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: CupertinoColors.systemGrey.resolveFrom(context),
+                              height: 1.4,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 80), // Push the whole content up
+                      ],
                     ),
                   ),
                 )
