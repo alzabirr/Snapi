@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class MicPermissionScreen extends StatelessWidget {
@@ -13,35 +13,37 @@ class MicPermissionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.white,
-      child: SafeArea(
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
         child: Column(
           children: [
             const Spacer(),
             Icon(
-              CupertinoIcons.mic_fill,
+              Icons.mic,
               size: 100,
-              color: CupertinoColors.systemRed.withOpacity(0.8),
+              color: Colors.red.withOpacity(0.8),
             ),
             const SizedBox(height: 40),
-            const Text(
+            Text(
               'Microphone',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
+                color: theme.colorScheme.onSurface,
                 letterSpacing: -1,
               ),
             ),
             const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
                 'Enable your microphone to add voice memos and notes to your screenshots effortlessly.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 17,
-                  color: CupertinoColors.secondaryLabel,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                   height: 1.4,
                 ),
               ),
@@ -52,17 +54,21 @@ class MicPermissionScreen extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 height: 60,
-                child: CupertinoButton(
-                  color: CupertinoColors.activeBlue,
-                  borderRadius: BorderRadius.circular(20),
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
                   onPressed: () => _request(context),
                   child: const Text(
                     'Enable Microphone',
                     style: TextStyle(
                       fontSize: 19,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
-                      color: CupertinoColors.white,
+                      color: Colors.white,
                     ),
                   ),
                 ),

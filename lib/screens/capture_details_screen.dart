@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -130,13 +130,16 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
         await DatabaseService.addItem(_currentItem);
       } else {
         if (mounted) {
-          showCupertinoDialog(
+          showDialog(
             context: context,
-            builder: (context) => CupertinoAlertDialog(
+            builder: (context) => AlertDialog(
               title: const Text('No Text Found'),
               content: const Text('Could not find any readable text in this image.'),
               actions: [
-                CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context)),
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ],
             ),
           );
@@ -150,9 +153,10 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
   }
 
   void _editItem() {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => ScreenshotPopup(
         initialNote: _currentItem.note,
         initialCategory: _currentItem.category,
@@ -175,53 +179,66 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
     final hasNote = _currentItem.note.isNotEmpty;
     final hasText = _currentItem.extractedText.isNotEmpty;
 
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: const Text('Share Capture'),
-        message: const Text('How would you like to share this?'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              String shareText = _currentItem.note;
-              if (hasText) {
-                if (shareText.isNotEmpty) shareText += '\n\n--- Extracted Text ---\n';
-                shareText += _currentItem.extractedText;
-              }
-              Share.shareXFiles(
-                [XFile(_currentItem.path)],
-                text: shareText,
-                subject: hasNote ? _currentItem.note : 'Shared Screenshot',
-              );
-            },
-            child: const Text('Share All (Image + Text)'),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              Share.shareXFiles([XFile(_currentItem.path)]);
-            },
-            child: const Text('Share Image Only'),
-          ),
-          if (hasNote || hasText)
-            CupertinoActionSheetAction(
-              onPressed: () {
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Share Capture',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.all_inclusive_outlined),
+              title: const Text('Share All (Image + Text)'),
+              onTap: () {
                 Navigator.pop(context);
                 String shareText = _currentItem.note;
                 if (hasText) {
-                  if (shareText.isNotEmpty) shareText += '\n\n';
+                  if (shareText.isNotEmpty) shareText += '\n\n--- Extracted Text ---\n';
                   shareText += _currentItem.extractedText;
                 }
-                Share.share(shareText);
+                Share.shareXFiles(
+                  [XFile(_currentItem.path)],
+                  text: shareText,
+                  subject: hasNote ? _currentItem.note : 'Shared Screenshot',
+                );
               },
-              child: const Text('Share Text Only'),
             ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDefaultAction: true,
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+            ListTile(
+              leading: const Icon(Icons.image_outlined),
+              title: const Text('Share Image Only'),
+              onTap: () {
+                Navigator.pop(context);
+                Share.shareXFiles([XFile(_currentItem.path)]);
+              },
+            ),
+            if (hasNote || hasText)
+              ListTile(
+                leading: const Icon(Icons.text_fields_outlined),
+                title: const Text('Share Text Only'),
+                onTap: () {
+                  Navigator.pop(context);
+                  String shareText = _currentItem.note;
+                  if (hasText) {
+                    if (shareText.isNotEmpty) shareText += '\n\n';
+                    shareText += _currentItem.extractedText;
+                  }
+                  Share.share(shareText);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
@@ -248,10 +265,14 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
-      child: Stack(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final onSurfaceColor = Theme.of(context).colorScheme.onSurface;
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: Stack(
         children: [
           CustomScrollView(
             controller: _scrollController,
@@ -262,7 +283,7 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                   children: [
                     Hero(
                       tag: 'capture_${_currentItem.id}',
-                      child: Container(
+                      child: SizedBox(
                         width: double.infinity,
                         height: MediaQuery.of(context).size.height * 0.55,
                         child: ClipRRect(
@@ -283,13 +304,19 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              isDark ? const Color(0xFF1A1A1A).withOpacity(0.9) : CupertinoColors.white.withOpacity(0.9),
-                              isDark ? const Color(0xFF121212).withOpacity(0.95) : CupertinoColors.systemGrey6.withOpacity(0.9),
+                              isDark ? const Color(0xFF1A1A1A).withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.9),
+                              isDark ? const Color(0xFF121212).withValues(alpha: 0.95) : Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.9),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(32),
-                          border: Border.all(color: CupertinoColors.label.resolveFrom(context).withOpacity(0.15), width: 0.8),
-                          boxShadow: [BoxShadow(color: CupertinoColors.black.withOpacity(0.6), blurRadius: 35, offset: const Offset(0, 15))],
+                          border: Border.all(color: onSurfaceColor.withValues(alpha: 0.15), width: 0.8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3), 
+                              blurRadius: 35, 
+                              offset: const Offset(0, 15),
+                            )
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,36 +328,51 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(color: CupertinoColors.activeBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                                      child: const Text('NOTE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: CupertinoColors.activeBlue, letterSpacing: 2.0)),
+                                      decoration: BoxDecoration(
+                                        color: primaryColor.withValues(alpha: 0.1), 
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'NOTE', 
+                                        style: TextStyle(
+                                          fontSize: 11, 
+                                          fontWeight: FontWeight.w900, 
+                                          color: primaryColor, 
+                                          letterSpacing: 2.0,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 12),
                                     if (_currentItem.note.isNotEmpty)
-                                      CupertinoButton(
+                                      IconButton(
                                         padding: EdgeInsets.zero,
                                         onPressed: _speakNote,
-                                        child: Icon(_isSpeaking ? CupertinoIcons.stop_circle_fill : CupertinoIcons.play_circle_fill, color: CupertinoColors.activeBlue, size: 28),
+                                        icon: Icon(
+                                          _isSpeaking ? Icons.stop_circle : Icons.play_circle, 
+                                          color: primaryColor, 
+                                          size: 28,
+                                        ),
                                       ),
                                   ],
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: isDark ? CupertinoColors.white.withOpacity(0.05) : CupertinoColors.black.withOpacity(0.04),
+                                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: CupertinoColors.label.resolveFrom(context).withOpacity(0.1), width: 0.5),
+                                    border: Border.all(color: onSurfaceColor.withValues(alpha: 0.1), width: 0.5),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(CupertinoIcons.folder_fill, size: 14, color: CupertinoColors.systemGrey.resolveFrom(context)),
+                                      Icon(Icons.folder, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                       const SizedBox(width: 6),
                                       Text(
                                         _currentItem.category.toUpperCase(),
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w800,
-                                          color: CupertinoColors.label.resolveFrom(context).withOpacity(0.6),
+                                          color: onSurfaceColor.withValues(alpha: 0.6),
                                           letterSpacing: 1.0,
                                         ),
                                       ),
@@ -342,19 +384,36 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                             const SizedBox(height: 20),
                             Text(
                               _currentItem.note.isNotEmpty ? _currentItem.note : 'No description provided.',
-                              style: TextStyle(fontSize: 18, color: CupertinoColors.label.resolveFrom(context), height: 1.6, fontWeight: FontWeight.w500, letterSpacing: 0.2),
+                              style: TextStyle(
+                                fontSize: 18, 
+                                color: onSurfaceColor, 
+                                height: 1.6, 
+                                fontWeight: FontWeight.w500, 
+                                letterSpacing: 0.2,
+                              ),
                             ),
                             if (_currentItem.extractedText.isNotEmpty) ...[
                               const SizedBox(height: 32),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(color: CupertinoColors.systemPurple.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.1), 
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Image.asset('assets/snapi.png', width: 14, height: 14),
-                                    SizedBox(width: 6),
-                                    Text('SNAPI VISION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: const Color(0xFFF75A4C), letterSpacing: 1.5)),
+                                    Image.asset('assets/krabby.png', width: 14, height: 14),
+                                    const SizedBox(width: 6),
+                                    const Text(
+                                      'KRABBY VISION', 
+                                      style: TextStyle(
+                                        fontSize: 10, 
+                                        fontWeight: FontWeight.w900, 
+                                        color: Color(0xFFF75A4C), 
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -363,20 +422,28 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: isDark ? CupertinoColors.white.withOpacity(0.04) : CupertinoColors.black.withOpacity(0.03),
+                                  color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: CupertinoColors.systemPurple.withOpacity(0.15), width: 1),
+                                  border: Border.all(color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.15), width: 1),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    CupertinoTextField(
+                                    TextField(
                                       controller: TextEditingController(text: _currentItem.extractedText),
                                       readOnly: true,
                                       maxLines: null,
-                                      decoration: null,
-                                      padding: EdgeInsets.zero,
-                                      style: TextStyle(fontSize: 14, color: CupertinoColors.label.resolveFrom(context).withOpacity(0.85), height: 1.6, fontWeight: FontWeight.w400, letterSpacing: 0.2),
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 14, 
+                                        color: onSurfaceColor.withValues(alpha: 0.85), 
+                                        height: 1.6, 
+                                        fontWeight: FontWeight.w400, 
+                                        letterSpacing: 0.2,
+                                      ),
                                     ),
                                     _buildActionChips(_currentItem.extractedText),
                                   ],
@@ -387,17 +454,17 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                _ActionButton(icon: CupertinoIcons.pencil_circle_fill, label: 'Edit', onPressed: _editItem, color: CupertinoColors.activeBlue),
+                                _ActionButton(icon: Icons.edit_outlined, label: 'Edit', onPressed: _editItem, color: primaryColor),
                                 _ActionButton(
-                                  customIcon: _currentItem.extractedText.isNotEmpty ? null : Image.asset('assets/snapi.png', width: 28, height: 28),
-                                  icon: _currentItem.extractedText.isNotEmpty ? CupertinoIcons.xmark_circle_fill : null, 
-                                  label: _isExtractingText ? 'Reading...' : (_currentItem.extractedText.isNotEmpty ? 'Clear Text' : 'Snapi Vision'), 
+                                  customIcon: _currentItem.extractedText.isNotEmpty ? null : Image.asset('assets/krabby.png', width: 28, height: 28),
+                                  icon: _currentItem.extractedText.isNotEmpty ? Icons.clear : null, 
+                                  label: _isExtractingText ? 'Reading...' : (_currentItem.extractedText.isNotEmpty ? 'Clear Text' : 'Krabby Vision'), 
                                   onPressed: _isExtractingText ? () {} : _extractText, 
-                                  color: _currentItem.extractedText.isNotEmpty ? CupertinoColors.systemGrey : const Color(0xFFF75A4C), 
+                                  color: _currentItem.extractedText.isNotEmpty ? Colors.grey : const Color(0xFFF75A4C), 
                                   isLoading: _isExtractingText
                                 ),
-                                _ActionButton(icon: CupertinoIcons.arrowshape_turn_up_right_circle_fill, label: 'Share', onPressed: _shareItem, color: CupertinoColors.activeBlue),
-                                _ActionButton(icon: CupertinoIcons.trash_circle_fill, label: 'Delete', onPressed: _deleteItem, color: CupertinoColors.activeBlue),
+                                _ActionButton(icon: Icons.share_outlined, label: 'Share', onPressed: _shareItem, color: primaryColor),
+                                _ActionButton(icon: Icons.delete_outline, label: 'Delete', onPressed: _deleteItem, color: primaryColor),
                               ],
                             ),
                           ],
@@ -417,7 +484,7 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                 filter: ImageFilter.blur(sigmaX: 10 * _headerOpacity, sigmaY: 10 * _headerOpacity),
                 child: Container(
                   padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-                  color: (isDark ? CupertinoColors.black : CupertinoColors.white).withOpacity(_headerOpacity.clamp(0, 0.8)),
+                  color: (isDark ? Colors.black : Colors.white).withValues(alpha: _headerOpacity.clamp(0, 0.8)),
                   child: SizedBox(
                     height: 60,
                     child: Padding(
@@ -425,29 +492,39 @@ class _CaptureDetailsScreenState extends State<CaptureDetailsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          CupertinoButton(
-                            padding: EdgeInsets.zero,
+                          IconButton(
                             onPressed: () => Navigator.pop(context),
-                            child: Container(
+                            icon: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: CupertinoColors.black.withOpacity(0.3), shape: BoxShape.circle),
-                              child: const Icon(CupertinoIcons.back, color: CupertinoColors.white, size: 22),
+                              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
+                              child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
                             ),
                           ),
                           Opacity(
                             opacity: _headerOpacity,
-                            child: Text('Details', style: TextStyle(color: CupertinoColors.label.resolveFrom(context), fontWeight: FontWeight.w700, fontSize: 18, letterSpacing: -0.5)),
+                            child: Text(
+                              'Details', 
+                              style: TextStyle(
+                                color: onSurfaceColor, 
+                                fontWeight: FontWeight.w700, 
+                                fontSize: 18, 
+                                letterSpacing: -0.5,
+                              ),
+                            ),
                           ),
-                          CupertinoButton(
-                            padding: EdgeInsets.zero,
+                          IconButton(
                             onPressed: () async {
                               setState(() => _currentItem.isFavorite = !_currentItem.isFavorite);
                               await DatabaseService.addItem(_currentItem);
                             },
-                            child: Container(
+                            icon: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: CupertinoColors.black.withOpacity(0.3), shape: BoxShape.circle),
-                              child: Icon(_currentItem.isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart, color: _currentItem.isFavorite ? CupertinoColors.systemRed : CupertinoColors.white, size: 22),
+                              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
+                              child: Icon(
+                                _currentItem.isFavorite ? Icons.favorite : Icons.favorite_border, 
+                                color: _currentItem.isFavorite ? Colors.red : Colors.white, 
+                                size: 22,
+                              ),
                             ),
                           ),
                         ],
@@ -476,25 +553,44 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: isLoading ? null : onPressed,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withOpacity(0.2), color.withOpacity(0.05)]),
-              shape: BoxShape.circle,
-              border: Border.all(color: color.withOpacity(0.2), width: 1),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: isLoading ? null : onPressed,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft, 
+                  end: Alignment.bottomRight, 
+                  colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)],
+                ),
+                shape: BoxShape.circle,
+                border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+              ),
+              child: isLoading 
+                ? const SizedBox(
+                    width: 28, 
+                    height: 28, 
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : (customIcon ?? Icon(icon, color: color, size: 28)),
             ),
-            child: isLoading 
-              ? const SizedBox(width: 28, height: 28, child: CupertinoActivityIndicator(radius: 10))
-              : (customIcon ?? Icon(icon, color: color, size: 28)),
-          ),
-          const SizedBox(height: 8),
-          Text(label, style: TextStyle(fontSize: 13, color: color.withOpacity(0.9), fontWeight: FontWeight.w600)),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              label, 
+              style: TextStyle(
+                fontSize: 13, 
+                color: color.withValues(alpha: 0.9), 
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -510,7 +606,7 @@ class _ActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chipColor = color ?? CupertinoColors.systemPurple;
+    final chipColor = color ?? Theme.of(context).colorScheme.secondary;
     return GestureDetector(
       onTap: () async {
         final uri = Uri.parse(value);
@@ -519,9 +615,9 @@ class _ActionChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: chipColor.withOpacity(0.1),
+          color: chipColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: chipColor.withOpacity(0.2)),
+          border: Border.all(color: chipColor.withValues(alpha: 0.2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

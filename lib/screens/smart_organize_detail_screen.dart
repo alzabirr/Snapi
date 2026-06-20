@@ -1,7 +1,6 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'dart:math';
-import 'package:flutter/material.dart' show Colors;
 
 class SmartOrganizeDetailScreen extends StatefulWidget {
   const SmartOrganizeDetailScreen({super.key});
@@ -30,22 +29,24 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    final primaryColor = CupertinoColors.activeBlue;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.colorScheme.primary;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF9F9FB),
-      navigationBar: CupertinoNavigationBar(
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, size: 28),
           onPressed: () => Navigator.pop(context),
-          child: const Icon(CupertinoIcons.chevron_back, size: 28),
         ),
-        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF9F9FB),
-        middle: const Text('AI Workflow'),
-        border: null,
+        backgroundColor: Colors.transparent,
+        title: const Text('AI Workflow'),
+        centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
-      child: Stack(
+      body: Stack(
         children: [
           // Main Content
           SafeArea(
@@ -77,11 +78,11 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 50),
                           child: Text(
-                            'Snapi automatically analyzes your captures to suggest the perfect folder for you.',
+                            'Krabby automatically analyzes your captures to suggest the perfect folder for you.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 15,
-                              color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
                               fontWeight: FontWeight.w600,
                               height: 1.4,
                             ),
@@ -119,18 +120,18 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
                         _buildFloatingNode(
                           top: 0,
                           left: 20,
-                          icon: CupertinoIcons.camera_fill,
-                          color: CupertinoColors.systemPink,
+                          icon: Icons.camera_alt,
+                          color: Colors.pink,
                           label: 'Auto-Detection',
-                          desc: 'Snapi instantly feels when you save a new screenshot.',
+                          desc: 'Krabby instantly feels when you save a new screenshot.',
                           delay: 0.0,
                         ),
                         
                         _buildFloatingNode(
                           top: 180,
                           right: 10,
-                          icon: CupertinoIcons.doc_text_viewfinder,
-                          color: CupertinoColors.activeBlue,
+                          icon: Icons.document_scanner,
+                          color: primaryColor,
                           label: 'Text Reading',
                           desc: 'AI reads keywords inside images to understand what it is.',
                           delay: 0.25,
@@ -139,8 +140,8 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
                         _buildFloatingNode(
                           top: 360,
                           left: 10,
-                          icon: CupertinoIcons.sparkles,
-                          color: CupertinoColors.systemYellow,
+                          icon: Icons.auto_awesome,
+                          color: Colors.amber.shade700,
                           label: 'Auto-Suggestion',
                           desc: 'AI automatically suggests the best folder based on content.',
                           delay: 0.5,
@@ -149,8 +150,8 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
                         _buildFloatingNode(
                           top: 540,
                           right: 20,
-                          icon: CupertinoIcons.folder_badge_plus,
-                          color: CupertinoColors.systemGreen,
+                          icon: Icons.create_new_folder,
+                          color: Colors.green,
                           label: 'Auto-Organize',
                           desc: 'With one tap, your capture is sorted into its smart folder.',
                           delay: 0.75,
@@ -179,6 +180,9 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
     required String desc,
     required double delay,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Positioned(
       top: top,
       left: left,
@@ -215,9 +219,7 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (CupertinoTheme.of(context).brightness == Brightness.dark 
-                      ? const Color(0xFF1C1C1E) 
-                      : CupertinoColors.white).withOpacity(0.8),
+                    color: (isDark ? const Color(0xFF1E293B) : Colors.white).withOpacity(0.8),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: color.withOpacity(0.1)),
                   ),
@@ -228,7 +230,7 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
                         label,
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.bold,
                           color: color,
                           letterSpacing: -0.2,
                         ),
@@ -240,7 +242,7 @@ class _SmartOrganizeDetailScreenState extends State<SmartOrganizeDetailScreen> w
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
                           height: 1.3,
                         ),
                       ),

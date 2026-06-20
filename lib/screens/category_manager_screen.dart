@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/database_service.dart';
 import '../widgets/custom_delete_dialog.dart';
@@ -32,31 +32,32 @@ class _CategoryManagerScreenState extends State<CategoryManagerScreen> {
   Future<void> _saveCategories() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('user_categories', _categories);
-    // Notify other screens to refresh
     DatabaseService.categoryNotifier.value++;
   }
 
   void _addCategory() {
     final TextEditingController controller = TextEditingController();
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Add Category'),
         content: Padding(
           padding: const EdgeInsets.only(top: 12.0),
-          child: CupertinoTextField(
+          child: TextField(
             controller: controller,
-            placeholder: 'Folder Name',
+            decoration: const InputDecoration(
+              hintText: 'Folder Name',
+              border: OutlineInputBorder(),
+            ),
             autofocus: true,
           ),
         ),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
           ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
+          TextButton(
             child: const Text('Add'),
             onPressed: () {
               if (controller.text.isNotEmpty) {
@@ -75,13 +76,13 @@ class _CategoryManagerScreenState extends State<CategoryManagerScreen> {
 
   void _deleteCategory(int index) {
     if (_categories[index] == 'Uncategorized') {
-      showCupertinoDialog(
+      showDialog(
         context: context,
-        builder: (context) => CupertinoAlertDialog(
+        builder: (context) => AlertDialog(
           title: const Text('Cannot Delete'),
           content: const Text('The "Uncategorized" category is default and cannot be removed.'),
           actions: [
-            CupertinoDialogAction(
+            TextButton(
               child: const Text('OK'),
               onPressed: () => Navigator.pop(context),
             ),
@@ -107,26 +108,31 @@ class _CategoryManagerScreenState extends State<CategoryManagerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
-      navigationBar: CupertinoNavigationBar(
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, size: 28),
           onPressed: () => Navigator.pop(context),
-          child: const Icon(CupertinoIcons.chevron_back, size: 28),
         ),
-        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
-        middle: const Text('Manage Folders'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _addCategory,
-          child: const Icon(CupertinoIcons.plus_circle_fill, size: 28),
-        ),
+        title: const Text('Manage Folders'),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.add_circle, size: 28, color: theme.colorScheme.primary),
+            onPressed: _addCategory,
+          ),
+        ],
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: _isLoading
-            ? const Center(child: CupertinoActivityIndicator())
+            ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: _categories.length,
@@ -134,21 +140,27 @@ class _CategoryManagerScreenState extends State<CategoryManagerScreen> {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: CupertinoTheme.of(context).barBackgroundColor,
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
-                        color: CupertinoColors.systemGrey.withOpacity(0.2),
+                        color: theme.colorScheme.onSurface.withOpacity(0.12),
+                        width: 0.5,
                       ),
                     ),
-                    child: CupertinoListTile(
-                      leading: const Icon(CupertinoIcons.folder_fill, color: CupertinoColors.activeBlue),
-                      title: Text(_categories[index]),
+                    child: ListTile(
+                      leading: Icon(Icons.folder, color: theme.colorScheme.primary),
+                      title: Text(
+                        _categories[index],
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       trailing: _categories[index] == 'Uncategorized'
                           ? null
-                          : CupertinoButton(
-                              padding: EdgeInsets.zero,
+                          : IconButton(
+                              icon: Icon(Icons.delete_outline, color: theme.colorScheme.error, size: 22),
                               onPressed: () => _deleteCategory(index),
-                              child: const Icon(CupertinoIcons.trash, color: CupertinoColors.destructiveRed, size: 20),
                             ),
                     ),
                   );

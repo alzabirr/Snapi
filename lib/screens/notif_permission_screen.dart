@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,35 +16,37 @@ class NotifPermissionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.white,
-      child: SafeArea(
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
         child: Column(
           children: [
             const Spacer(),
             Icon(
-              CupertinoIcons.bell_fill,
+              Icons.notifications_active,
               size: 100,
-              color: CupertinoColors.systemYellow.withOpacity(0.8),
+              color: Colors.amber.withOpacity(0.8),
             ),
             const SizedBox(height: 40),
-            const Text(
+            Text(
               'Notifications',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
+                color: theme.colorScheme.onSurface,
                 letterSpacing: -1,
               ),
             ),
             const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
-                'Stay updated! Snapi will alert you when new screenshots are detected.',
+                'Stay updated! Krabby will alert you when new screenshots are detected.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 17,
-                  color: CupertinoColors.secondaryLabel,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                   height: 1.4,
                 ),
               ),
@@ -55,17 +57,21 @@ class NotifPermissionScreen extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 height: 60,
-                child: CupertinoButton(
-                  color: CupertinoColors.activeBlue,
-                  borderRadius: BorderRadius.circular(20),
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
                   onPressed: () => _request(context),
                   child: const Text(
                     'Allow Notifications',
                     style: TextStyle(
                       fontSize: 19,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
-                      color: CupertinoColors.white,
+                      color: Colors.white,
                     ),
                   ),
                 ),

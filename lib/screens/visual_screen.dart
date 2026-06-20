@@ -2,8 +2,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Colors;
+import 'package:flutter/material.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import 'dart:async';
@@ -99,7 +98,6 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
       if (cats == null || cats.isEmpty) cats = ['Uncategorized', 'Personal'];
       cats = cats.toSet().toList();
 
-      // Load saved offsets
       final savedStr = prefs.getString('visual_offsets');
       if (savedStr != null) {
         final Map<String, dynamic> decoded = jsonDecode(savedStr);
@@ -137,18 +135,26 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Center(child: CupertinoActivityIndicator());
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    if (_isLoading) return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+    final isDark = theme.brightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.white,
-      navigationBar: CupertinoNavigationBar(
-        transitionBetweenRoutes: false,
-        middle: Text('VISUAL', style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w800)),
-        backgroundColor: (isDark ? Colors.black : Colors.white).withOpacity(0.8),
-        border: null,
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text(
+          'VISUAL',
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
-      child: LayoutBuilder(
+      body: LayoutBuilder(
         builder: (context, constraints) {
           if (!_initialCentered) {
             _initialCentered = true;
@@ -189,13 +195,14 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                                   dateCategories: _getDateCategories(),
                                   getMonthName: _getMonthName,
                                   canvasSize: 8000,
+                                  primaryColor: theme.colorScheme.primary,
                                 ),
                               ),
                             ),
                           ];
 
                           final List<Widget> nodes = [
-                            _buildDraggableNode(4000, 4000, '', CupertinoColors.activeBlue, 'root', isCenter: true),
+                            _buildDraggableNode(4000, 4000, '', theme.colorScheme.primary, 'root', isCenter: true),
                             ..._buildCategoryBranches(),
                           ];
 
@@ -232,7 +239,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                 ),
               ),
 
-              // Reset Button on the Right Side (Middle, above Layout menu)
+              // Reset Button on the Right Side
               Positioned(
                 bottom: 385, right: 20,
                 child: AnimatedOpacity(
@@ -290,10 +297,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     HapticFeedback.mediumImpact();
   }
 
-  // _VisualResetButton is defined as a standalone stateful widget at the bottom of the file
-
-
   Widget _buildInstructionCard(bool isDark) {
+    final theme = Theme.of(context);
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -303,16 +308,16 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
           decoration: BoxDecoration(
             color: (isDark ? Colors.black : Colors.white).withOpacity(0.4),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.2)),
+            border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2)),
           ),
           child: Row(
             children: [
-              const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 20),
+              Icon(Icons.auto_awesome, color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   _viewMode == 3 ? 'Social Network Graph enabled. Drag nodes freely.' : 'Explore your visual catalog. Drag nodes to move.',
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 13, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -332,10 +337,10 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
           child: Stack(
             alignment: Alignment.bottomRight,
             children: [
-              _buildAnimatedMenuButton(index: 2, isOpen: _isMenuOpen, icon: CupertinoIcons.square_grid_2x2_fill, label: 'Overview', bottom: 185, onPressed: () => setState(() { _viewMode = 0; _isMenuOpen = false; })),
-              _buildAnimatedMenuButton(index: 1, isOpen: _isMenuOpen, icon: CupertinoIcons.time_solid, label: 'Timeline', bottom: 125, onPressed: () => setState(() { _viewMode = 2; _isMenuOpen = false; })),
-              _buildAnimatedMenuButton(index: 0, isOpen: _isMenuOpen, icon: CupertinoIcons.folder_solid, label: 'Clusters', bottom: 65, onPressed: () => setState(() { _viewMode = 1; _isMenuOpen = false; })),
-              _buildFloatingButton(icon: _isMenuOpen ? CupertinoIcons.xmark : CupertinoIcons.slider_horizontal_3, label: 'Layout', onPressed: () => setState(() => _isMenuOpen = !_isMenuOpen)),
+              _buildAnimatedMenuButton(index: 2, isOpen: _isMenuOpen, icon: Icons.grid_view, label: 'Overview', bottom: 185, onPressed: () => setState(() { _viewMode = 0; _isMenuOpen = false; })),
+              _buildAnimatedMenuButton(index: 1, isOpen: _isMenuOpen, icon: Icons.access_time_filled, label: 'Timeline', bottom: 125, onPressed: () => setState(() { _viewMode = 2; _isMenuOpen = false; })),
+              _buildAnimatedMenuButton(index: 0, isOpen: _isMenuOpen, icon: Icons.folder, label: 'Clusters', bottom: 65, onPressed: () => setState(() { _viewMode = 1; _isMenuOpen = false; })),
+              _buildFloatingButton(icon: _isMenuOpen ? Icons.close : Icons.tune, label: 'Layout', onPressed: () => setState(() => _isMenuOpen = !_isMenuOpen)),
             ],
           ),
         ),
@@ -347,6 +352,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     List<Widget> widgets = [];
     double centerX = 4000;
     double centerY = 4000;
+    final theme = Theme.of(context);
 
     if (_viewMode == 0) {
       final allItems = _groupedItems.values.expand((x) => x).toList();
@@ -363,7 +369,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         double defCatX = centerX + 600 * cos(angle);
         double defCatY = centerY + 600 * sin(angle);
         final String nodeId = 'date_${dateCategories[i]}';
-        widgets.add(_buildDraggableNode(defCatX, defCatY, dateCategories[i], CupertinoColors.systemIndigo, nodeId));
+        widgets.add(_buildDraggableNode(defCatX, defCatY, dateCategories[i], Colors.indigo, nodeId));
         final items = _groupedItems.values.expand((x) => x).where((it) => '${it.createdAt.day} ${_getMonthName(it.createdAt.month)} ${it.createdAt.year}' == dateCategories[i]).toList();
         final catPos = _getNodePos(nodeId, defCatX, defCatY);
         for (int j = 0; j < items.length; j++) {
@@ -396,6 +402,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   Widget _buildDraggableNode(double defX, double defY, String label, Color color, String id, {bool isCenter = false}) {
     final pos = _getNodePos(id, defX, defY);
     final isDragging = _draggedId == id;
+    final theme = Theme.of(context);
+    
     return Positioned(
       key: ValueKey('node_$id'),
       left: pos.dx - (isCenter ? 75 : 60),
@@ -409,7 +417,6 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         onPanUpdate: (details) {
           setState(() {
             final double scale = _transformationController.value.getMaxScaleOnAxis();
-            // Reduced to 0.48 for an extremely premium, smooth, and highly controlled feel
             _customOffsets['mode_${_viewMode}_$id'] = (_customOffsets['mode_${_viewMode}_$id'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.48;
           });
         },
@@ -417,7 +424,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
           setState(() => _draggedId = null);
           _saveOffsets();
         },
-        onTap: () { if (!isCenter) Navigator.push(context, CupertinoPageRoute(builder: (c) => CategoryDetailScreen(category: label, items: _groupedItems[label] ?? []))); },
+        onTap: () { if (!isCenter) Navigator.push(context, MaterialPageRoute(builder: (c) => CategoryDetailScreen(category: label, items: _groupedItems[label] ?? []))); },
         child: AnimatedBuilder(
           animation: _waveController,
           builder: (c, child) {
@@ -447,8 +454,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                     margin: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: color.withOpacity(0.4), shape: BoxShape.circle),
                     child: isCenter 
-                      ? ClipRRect(borderRadius: BorderRadius.circular(75), child: Image.asset('assets/snapi.png', fit: BoxFit.cover)) 
-                      : const Icon(CupertinoIcons.folder_fill, color: Colors.white, size: 40),
+                      ? ClipRRect(borderRadius: BorderRadius.circular(75), child: Image.asset('assets/krabby.png', fit: BoxFit.cover)) 
+                      : const Icon(Icons.folder, color: Colors.white, size: 40),
                   ),
                 ),
               ),
@@ -457,11 +464,11 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                 Text(
                   label, 
                   style: TextStyle(
-                    color: CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, 
+                    color: theme.colorScheme.onSurface, 
                     fontSize: 14, 
                     fontWeight: FontWeight.w900,
                     shadows: [
-                      Shadow(color: (CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white).withOpacity(0.5), blurRadius: 4)
+                      Shadow(color: (theme.brightness == Brightness.dark ? Colors.black : Colors.white).withOpacity(0.5), blurRadius: 4)
                     ]
                   )
                 ),
@@ -477,6 +484,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   Widget _buildDraggableItemNode(double defX, double defY, ScreenshotItem item) {
     final pos = _getNodePos(item.id, defX, defY);
     final isDragging = _draggedId == 'item_${item.id}';
+    final theme = Theme.of(context);
+    
     return Positioned(
       key: ValueKey('item_${item.id}'),
       left: pos.dx - 60, top: pos.dy - 75,
@@ -489,7 +498,6 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
         onPanUpdate: (details) {
           setState(() {
             final double scale = _transformationController.value.getMaxScaleOnAxis();
-            // Reduced to 0.48 for an extremely premium, smooth, and highly controlled feel
             _customOffsets['mode_${_viewMode}_${item.id}'] = (_customOffsets['mode_${_viewMode}_${item.id}'] ?? Offset(defX, defY)) + (details.delta / (scale > 0 ? scale : 1.0)) * 0.48;
           });
         },
@@ -502,7 +510,6 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
             final itemId = draggedIdCopy.substring(5);
             final itemPos = _customOffsets['mode_${_viewMode}_$itemId'];
             if (itemPos != null) {
-              // Check if dropped on a folder
               for (int i = 0; i < _categories.length; i++) {
                 final String cat = _categories[i];
                 final String catNodeId = 'cat_${cat}_$i';
@@ -519,7 +526,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
             }
           }
         },
-        onTap: () => Navigator.push(context, CupertinoPageRoute(builder: (c) => CaptureDetailsScreen(item: item))),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => CaptureDetailsScreen(item: item))),
         child: AnimatedBuilder(
           animation: _waveController,
           builder: (c, child) {
@@ -540,21 +547,21 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                     blurRadius: isDragging ? 35 : 18, 
                     offset: isDragging ? const Offset(0, 15) : const Offset(0, 6),
                   ),
-                  if (isDragging) BoxShadow(color: CupertinoColors.activeBlue.withOpacity(0.4), blurRadius: 20, spreadRadius: 2),
+                  if (isDragging) BoxShadow(color: theme.colorScheme.primary.withOpacity(0.4), blurRadius: 20, spreadRadius: 2),
                 ],
               ),
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: ClipRRect(
+                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
                       child: Image.file(
                         File(item.path), 
                         fit: BoxFit.cover, 
                         cacheWidth: 180,
                         errorBuilder: (context, error, stackTrace) => Container(
-                          color: CupertinoColors.systemGrey6,
-                          child: const Center(child: Icon(CupertinoIcons.photo_on_rectangle, color: CupertinoColors.systemGrey, size: 30)),
+                          color: theme.colorScheme.surfaceVariant,
+                          child: Center(child: Icon(Icons.photo_library, color: theme.colorScheme.onSurfaceVariant, size: 30)),
                         ),
                       ),
                     ),
@@ -564,7 +571,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
                       decoration: BoxDecoration(
-                        color: (CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white).withOpacity(0.6),
+                        color: (theme.brightness == Brightness.dark ? Colors.black : Colors.white).withOpacity(0.6),
                         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
                       ),
                       child: Text(
@@ -572,8 +579,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                         maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 10, 
-                          fontWeight: FontWeight.w800, 
-                          color: CupertinoTheme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.bold, 
+                          color: theme.colorScheme.onSurface,
                           letterSpacing: 0.3
                         )
                       ),
@@ -589,12 +596,12 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(CupertinoIcons.trash_fill, color: CupertinoColors.systemRed, size: 35),
+                            const Icon(Icons.delete, color: Colors.red, size: 35),
                             const SizedBox(height: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: CupertinoColors.systemRed.withOpacity(0.8),
+                                color: Colors.red.withOpacity(0.8),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
@@ -637,7 +644,8 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   }
 
   void _showDropToast(String category) {
-    showCupertinoDialog(
+    final theme = Theme.of(context);
+    showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) {
@@ -648,7 +656,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: CupertinoColors.activeBlue.withOpacity(0.9),
+              color: theme.colorScheme.primary.withOpacity(0.9),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -662,7 +670,7 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
   }
 
   String _getMonthName(int m) => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1];
-  Color _getCategoryColor(int i) => [CupertinoColors.systemPurple, CupertinoColors.systemOrange, CupertinoColors.systemPink, CupertinoColors.systemTeal, CupertinoColors.systemGreen, CupertinoColors.systemIndigo][i % 6];
+  Color _getCategoryColor(int i) => [Colors.purple, Colors.orange, Colors.pink, Colors.teal, Colors.green, Colors.indigo][i % 6];
 
   Widget _buildAnimatedMenuButton({required int index, required bool isOpen, required IconData icon, required String label, required double bottom, required VoidCallback onPressed}) {
     return AnimatedPositioned(
@@ -675,13 +683,15 @@ class _VisualScreenState extends State<VisualScreen> with WidgetsBindingObserver
     );
   }
 
-  Widget _buildFloatingButton({required IconData icon, required String label, required VoidCallback onPressed, Color color = CupertinoColors.activeBlue}) {
+  Widget _buildFloatingButton({required IconData icon, required String label, required VoidCallback onPressed, Color? color}) {
+    final theme = Theme.of(context);
+    final buttonColor = color ?? theme.colorScheme.primary;
     return GestureDetector(
       onTap: onPressed,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(18)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: Colors.white, size: 20), const SizedBox(width: 10), Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700))]),
+        decoration: BoxDecoration(color: buttonColor, borderRadius: BorderRadius.circular(18)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: Colors.white, size: 20), const SizedBox(width: 10), Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold))]),
       ),
     );
   }
@@ -696,14 +706,15 @@ class MindMapPainter extends CustomPainter {
   final List<String> dateCategories;
   final String Function(int) getMonthName;
   final double canvasSize;
+  final Color primaryColor;
 
-  MindMapPainter({required this.categories, required this.groupedItems, required this.isDark, required this.customOffsets, required this.viewMode, required this.dateCategories, required this.getMonthName, required this.canvasSize});
+  MindMapPainter({required this.categories, required this.groupedItems, required this.isDark, required this.customOffsets, required this.viewMode, required this.dateCategories, required this.getMonthName, required this.canvasSize, required this.primaryColor});
 
   Offset _getPos(String id, double defX, double defY) => customOffsets['mode_${viewMode}_$id'] ?? Offset(defX, defY);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = CupertinoColors.activeBlue.withOpacity(isDark ? 0.2 : 0.3)..strokeWidth = 2.0..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+    final paint = Paint()..color = primaryColor.withOpacity(isDark ? 0.2 : 0.3)..strokeWidth = 2.0..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
     final double center = canvasSize / 2;
     final centerPos = _getPos('root', center, center);
 
@@ -748,7 +759,6 @@ class MindMapPainter extends CustomPainter {
 
   void _drawCurve(Canvas canvas, Offset start, Offset end, Paint paint) {
     final path = Path()..moveTo(start.dx, start.dy);
-    double dist = (end - start).distance;
     final cp1 = start + (end - start) * 0.45 + Offset(-(end - start).dy, (end - start).dx) * 0.1;
     final cp2 = end - (end - start) * 0.45 - Offset(-(end - start).dy, (end - start).dx) * 0.1;
     path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, end.dx, end.dy);
@@ -803,6 +813,7 @@ class _VisualResetButtonState extends State<_VisualResetButton> with SingleTicke
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: _handleTap,
       child: ScaleTransition(
@@ -815,22 +826,22 @@ class _VisualResetButtonState extends State<_VisualResetButton> with SingleTicke
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    CupertinoColors.activeBlue,
-                    Color(0xFF0056C6),
+                    theme.colorScheme.primary,
+                    theme.colorScheme.primary.withRed(50),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: CupertinoColors.white.withOpacity(0.15),
+                  color: Colors.white.withOpacity(0.15),
                   width: 1.0,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: CupertinoColors.activeBlue.withOpacity(0.35),
+                    color: theme.colorScheme.primary.withOpacity(0.35),
                     blurRadius: 12,
                     spreadRadius: 1,
                     offset: const Offset(0, 4),
@@ -841,8 +852,8 @@ class _VisualResetButtonState extends State<_VisualResetButton> with SingleTicke
                 child: RotationTransition(
                   turns: _rotationAnimation,
                   child: const Icon(
-                    CupertinoIcons.refresh_bold,
-                    color: CupertinoColors.white,
+                    Icons.refresh,
+                    color: Colors.white,
                     size: 18,
                   ),
                 ),

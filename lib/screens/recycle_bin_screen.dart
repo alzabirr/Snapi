@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
@@ -69,31 +69,36 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
-      navigationBar: CupertinoNavigationBar(
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, size: 28),
           onPressed: () => Navigator.pop(context),
-          child: const Icon(CupertinoIcons.chevron_back, size: 28),
         ),
-        backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
-        middle: const Text('Recycle Bin'),
-        trailing: _deletedItems.isNotEmpty 
-          ? CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _emptyRecycleBin,
-              child: const Text('Empty', style: TextStyle(color: CupertinoColors.destructiveRed)),
-            )
+        title: const Text('Recycle Bin'),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        actions: _deletedItems.isNotEmpty 
+          ? [
+              TextButton(
+                onPressed: _emptyRecycleBin,
+                child: const Text('Empty', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              )
+            ]
           : null,
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: _deletedItems.isEmpty
             ? const Center(
                 child: Text(
                   'Recycle Bin is empty',
-                  style: TextStyle(color: CupertinoColors.systemGrey),
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
               )
             : GridView.builder(
@@ -111,7 +116,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: CupertinoColors.systemGrey.resolveFrom(context).withOpacity(0.2),
+                        color: theme.colorScheme.onSurface.withOpacity(0.12),
                         width: 0.5,
                       ),
                     ),
@@ -129,20 +134,18 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
                           left: 0,
                           right: 0,
                           child: Container(
-                            color: CupertinoColors.black.withOpacity(0.6),
+                            color: Colors.black.withOpacity(0.6),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                CupertinoButton(
+                                IconButton(
                                   padding: EdgeInsets.zero,
-                                  minSize: 36,
-                                  child: const Icon(CupertinoIcons.arrow_counterclockwise, color: CupertinoColors.white, size: 18),
+                                  icon: const Icon(Icons.restore, color: Colors.white, size: 18),
                                   onPressed: () => _restoreItem(item),
                                 ),
-                                CupertinoButton(
+                                IconButton(
                                   padding: EdgeInsets.zero,
-                                  minSize: 36,
-                                  child: const Icon(CupertinoIcons.trash, color: CupertinoColors.systemRed, size: 18),
+                                  icon: const Icon(Icons.delete_forever, color: Colors.red, size: 18),
                                   onPressed: () => _permanentlyDeleteItem(item),
                                 ),
                               ],

@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import 'capture_details_screen.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../widgets/custom_delete_dialog.dart';
+import 'main_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -18,11 +19,15 @@ class CategoryScreen extends StatefulWidget {
 class _CategoryScreenState extends State<CategoryScreen> {
   Map<String, List<ScreenshotItem>> _groupedItems = {};
   List<String> _allCategories = ['Uncategorized', 'Personal'];
-
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      MainScreen.scrollOffsetNotifier.value = _scrollController.offset;
+    });
     _loadCategories();
     _loadItems();
     DatabaseService.box.listenable().addListener(_onDatabaseChange);
@@ -31,6 +36,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     DatabaseService.box.listenable().removeListener(_onDatabaseChange);
     DatabaseService.categoryNotifier.removeListener(_onDatabaseChange);
     super.dispose();
@@ -52,7 +58,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
       setState(() {
         if (saved == null || saved.isEmpty) {
           _allCategories = ['Uncategorized', 'Personal'];
-
         } else {
           // Always ensure Uncategorized is present
           if (!saved.contains('Uncategorized')) {
@@ -114,30 +119,33 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   void _addNewFolder() {
     final TextEditingController controller = TextEditingController();
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('New Folder'),
         content: Padding(
           padding: const EdgeInsets.only(top: 12),
-          child: CupertinoTextField(
+          child: TextField(
             controller: controller,
-            placeholder: 'Folder Name',
             autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Folder Name',
+              border: OutlineInputBorder(),
+            ),
           ),
         ),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
           ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
+          TextButton(
             onPressed: () {
-              if (controller.text.isNotEmpty) {
+              if (controller.text.trim().isNotEmpty) {
+                final folderName = controller.text.trim();
                 setState(() {
-                  _allCategories.add(controller.text);
-                  _groupedItems[controller.text] = [];
+                  _allCategories.add(folderName);
+                  _groupedItems[folderName] = [];
                 });
                 _saveCategories();
                 Navigator.pop(context);
@@ -151,31 +159,43 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   void _showFolderOptions(String category) {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: Text('Folder: $category'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _renameFolder(category);
-            },
-            child: const Text('Rename Folder'),
-          ),
-          CupertinoActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () {
-              Navigator.pop(context);
-              _confirmDeleteFolder(category);
-            },
-            child: const Text('Delete Folder'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDefaultAction: true,
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Folder: $category',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Rename Folder'),
+              onTap: () {
+                Navigator.pop(context);
+                _renameFolder(category);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('Delete Folder', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDeleteFolder(category);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
@@ -183,13 +203,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   void _renameFolder(String oldName) {
     if (oldName == 'Uncategorized') {
-      showCupertinoDialog(
+      showDialog(
         context: context,
-        builder: (context) => CupertinoAlertDialog(
+        builder: (context) => AlertDialog(
           title: const Text('Cannot Rename'),
           content: const Text('The Uncategorized folder is a system folder and cannot be renamed.'),
           actions: [
-            CupertinoDialogAction(
+            TextButton(
               child: const Text('OK'),
               onPressed: () => Navigator.pop(context),
             ),
@@ -200,25 +220,27 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
 
     final TextEditingController controller = TextEditingController(text: oldName);
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Rename Folder'),
         content: Padding(
           padding: const EdgeInsets.only(top: 12),
-          child: CupertinoTextField(
+          child: TextField(
             controller: controller,
-            placeholder: 'New Folder Name',
             autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'New Folder Name',
+              border: OutlineInputBorder(),
+            ),
           ),
         ),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
           ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
+          TextButton(
             onPressed: () async {
               final newName = controller.text.trim();
               if (newName.isNotEmpty && newName != oldName) {
@@ -238,11 +260,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 });
                 
                 // 3. Save categories to PREFERENCES immediately
-                // This ensures that any background refresh sees the correct list
                 await _saveCategories();
                 
                 // 4. Update items in DB (Atomic update)
-                // This triggers listeners, but now they will see the updated categories
                 await DatabaseService.renameCategory(oldName, newName);
                 
                 if (mounted) {
@@ -281,7 +301,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final folderColors = [
       const Color(0xFF8E8FFA), // Purple
       const Color(0xFFFFCC70), // Yellow
@@ -290,31 +310,34 @@ class _CategoryScreenState extends State<CategoryScreen> {
       const Color(0xFFA1EEBD), // Green
     ];
 
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
-      child: CustomScrollView(
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: CustomScrollView(
+        controller: _scrollController,
         physics: const BouncingScrollPhysics(),
         slivers: [
-          CupertinoSliverNavigationBar(
-            transitionBetweenRoutes: false,
-            largeTitle: Text(
+          SliverAppBar(
+            pinned: true,
+            title: Text(
               'My Folders',
               style: TextStyle(
-                color: CupertinoColors.label.resolveFrom(context),
+                color: Theme.of(context).colorScheme.onSurface,
                 letterSpacing: -1.2,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
-            border: null,
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _addNewFolder,
-              child: const Icon(CupertinoIcons.folder_badge_plus, size: 28, color: CupertinoColors.activeBlue),
-            ),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            scrolledUnderElevation: 0,
+            actions: [
+              IconButton(
+                onPressed: _addNewFolder,
+                icon: const Icon(Icons.create_new_folder_outlined, size: 28),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
@@ -369,7 +392,7 @@ class _FolderCard extends StatelessWidget {
       onLongPress: onLongPress,
       onTap: () => Navigator.push(
         context,
-        CupertinoPageRoute(
+        MaterialPageRoute(
           builder: (context) => CategoryDetailScreen(
             category: category,
             items: items,
@@ -416,7 +439,6 @@ class _FolderCard extends StatelessWidget {
                   ),
                 
                 // Front Folder Icon
-                // Custom Premium Folder Design
                 Positioned(
                   bottom: 0,
                   child: SizedBox(
@@ -433,8 +455,8 @@ class _FolderCard extends StatelessWidget {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                color.withOpacity(0.85),
-                                color.withOpacity(1.0),
+                                color.withValues(alpha: 0.85),
+                                color.withValues(alpha: 1.0),
                               ],
                             ),
                             borderRadius: const BorderRadius.only(
@@ -443,7 +465,6 @@ class _FolderCard extends StatelessWidget {
                               bottomLeft: Radius.circular(15),
                               bottomRight: Radius.circular(15),
                             ),
-                            // Shadow removed per user request
                           ),
                         ),
                         // Folder Tab
@@ -454,7 +475,7 @@ class _FolderCard extends StatelessWidget {
                             width: 32,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.9),
+                              color: color.withValues(alpha: 0.9),
                               borderRadius: const BorderRadius.only(
                                 topLeft: Radius.circular(8),
                                 topRight: Radius.circular(8),
@@ -470,7 +491,7 @@ class _FolderCard extends StatelessWidget {
                           child: Container(
                             height: 40,
                             decoration: BoxDecoration(
-                              color: CupertinoColors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
@@ -488,12 +509,12 @@ class _FolderCard extends StatelessWidget {
                                 end: Alignment.bottomRight,
                                 colors: [
                                   color,
-                                  color.withOpacity(0.9), // Keep it mostly solid
+                                  color.withValues(alpha: 0.9),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(15),
                               border: Border.all(
-                                color: CupertinoColors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 width: 0.5,
                               ),
                             ),
@@ -502,7 +523,7 @@ class _FolderCard extends StatelessWidget {
                                 width: 14,
                                 height: 2,
                                 decoration: BoxDecoration(
-                                  color: CupertinoColors.white.withOpacity(0.5),
+                                  color: Colors.white.withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(1),
                                 ),
                               ),
@@ -533,7 +554,7 @@ class _FolderCard extends StatelessWidget {
             '${items.length} items',
             style: TextStyle(
               fontSize: 11,
-              color: CupertinoColors.systemGrey.resolveFrom(context),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -548,10 +569,10 @@ class _FolderCard extends StatelessWidget {
       height: 55,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: CupertinoColors.white, width: 2),
+        border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
           BoxShadow(
-            color: CupertinoColors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -577,16 +598,20 @@ class CategoryDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
-      child: CustomScrollView(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          CupertinoSliverNavigationBar(
-            transitionBetweenRoutes: false,
-            largeTitle: Text(category),
-            backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
-            border: null,
+          SliverAppBar.large(
+            title: Text(category),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            scrolledUnderElevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
           SliverPadding(
             padding: const EdgeInsets.all(16),
@@ -603,18 +628,18 @@ class CategoryDetailScreen extends StatelessWidget {
                   return GestureDetector(
                     onTap: () => Navigator.push(
                       context,
-                      CupertinoPageRoute(
+                      MaterialPageRoute(
                         builder: (context) => CaptureDetailsScreen(item: item),
                       ),
                     ),
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(28),
-                        boxShadow: CupertinoTheme.of(context).brightness == Brightness.dark 
+                        boxShadow: isDark 
                           ? [] 
                           : [
                               BoxShadow(
-                                color: CupertinoColors.systemFill.resolveFrom(context),
+                                color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.08),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -633,8 +658,8 @@ class CategoryDetailScreen extends StatelessWidget {
                               cacheWidth: 400,
                               width: double.infinity,
                               errorBuilder: (context, error, stackTrace) => Container(
-                                color: CupertinoColors.systemGrey6,
-                                child: const Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey),
+                                color: Theme.of(context).colorScheme.surfaceContainer,
+                                child: const Icon(Icons.image_not_supported_outlined),
                               ),
                             ),
                           ),
@@ -648,10 +673,10 @@ class CategoryDetailScreen extends StatelessWidget {
                                   end: Alignment.bottomCenter,
                                   stops: const [0.0, 0.4, 0.7, 1.0],
                                   colors: [
-                                    CupertinoColors.black.withOpacity(0.2),
-                                    CupertinoColors.transparent,
-                                    CupertinoColors.black.withOpacity(0.3),
-                                    CupertinoColors.black.withOpacity(0.7),
+                                    Colors.black.withValues(alpha: 0.2),
+                                    Colors.transparent,
+                                    Colors.black.withValues(alpha: 0.3),
+                                    Colors.black.withValues(alpha: 0.7),
                                   ],
                                 ),
                               ),
@@ -669,12 +694,12 @@ class CategoryDetailScreen extends StatelessWidget {
                                 child: Container(
                                   padding: const EdgeInsets.all(14.0),
                                   decoration: BoxDecoration(
-                                    color: CupertinoTheme.of(context).brightness == Brightness.dark 
-                                        ? const Color(0xFF1A1A1A).withOpacity(0.7)
-                                        : CupertinoColors.white.withOpacity(0.85),
+                                    color: isDark 
+                                        ? const Color(0xFF1A1A1A).withValues(alpha: 0.7)
+                                        : Colors.white.withValues(alpha: 0.85),
                                     border: Border(
                                       top: BorderSide(
-                                        color: CupertinoColors.label.resolveFrom(context).withOpacity(0.12),
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
                                         width: 0.5,
                                       ),
                                     ),
@@ -689,7 +714,7 @@ class CategoryDetailScreen extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 15,
-                                          color: CupertinoColors.label.resolveFrom(context),
+                                          color: Theme.of(context).colorScheme.onSurface,
                                           fontWeight: FontWeight.w700,
                                           letterSpacing: 0.2,
                                         ),
@@ -702,12 +727,12 @@ class CategoryDetailScreen extends StatelessWidget {
                                             '${item.createdAt.day} ${_getMonthName(item.createdAt.month)}',
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: CupertinoColors.systemGrey.withOpacity(0.8),
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                          ],
-                                        ),
+                                        ],
+                                      ),
                                     ],
                                   ),
                                 ),

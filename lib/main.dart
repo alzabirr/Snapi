@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'services/database_service.dart';
@@ -53,7 +54,7 @@ void main() async {
         initialWidget = DeviceSetupScreen(
           onDone: () {
             navigatorKey.currentState?.pushReplacement(
-              CupertinoPageRoute(builder: (_) => const MainScreen()),
+              MaterialPageRoute(builder: (_) => const MainScreen()),
             );
           },
         );
@@ -71,22 +72,22 @@ void main() async {
     debugPrint('Startup preferences check failed: $e');
   }
   
-  runApp(SnapiApp(initialWidget: initialWidget));
+  runApp(KrabbyApp(initialWidget: initialWidget));
 }
 
-class SnapiApp extends StatefulWidget {
+class KrabbyApp extends StatefulWidget {
   final Widget initialWidget;
 
-  const SnapiApp({super.key, required this.initialWidget});
+  const KrabbyApp({super.key, required this.initialWidget});
 
-  static _SnapiAppState of(BuildContext context) => 
-      context.findAncestorStateOfType<_SnapiAppState>()!;
+  static _KrabbyAppState of(BuildContext context) => 
+      context.findAncestorStateOfType<_KrabbyAppState>()!;
 
   @override
-  State<SnapiApp> createState() => _SnapiAppState();
+  State<KrabbyApp> createState() => _KrabbyAppState();
 }
 
-class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
+class _KrabbyAppState extends State<KrabbyApp> with WidgetsBindingObserver {
   Brightness _brightness = Brightness.light;
   StreamSubscription? _screenshotSubscription;
   StreamSubscription? _notificationSubscription;
@@ -190,7 +191,7 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
       context: navigator.context,
       barrierDismissible: false,
       barrierLabel: 'Screenshot Popup',
-      barrierColor: CupertinoColors.black.withOpacity(0.4),
+      barrierColor: Colors.black.withOpacity(0.4),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
         return Align(
@@ -250,15 +251,52 @@ class _SnapiAppState extends State<SnapiApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoApp(
+    return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'Snapi',
-      theme: CupertinoThemeData(
-        primaryColor: CupertinoColors.activeBlue,
-        brightness: _brightness,
-        scaffoldBackgroundColor: _brightness == Brightness.dark 
-            ? CupertinoColors.black 
-            : CupertinoColors.white,
+      title: 'Krabby',
+      themeMode: _brightness == Brightness.dark ? ThemeMode.dark : ThemeMode.light,
+      theme: ThemeData(
+        textTheme: GoogleFonts.almaraiTextTheme(),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF76608A)),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          titleTextStyle: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+            fontSize: 18,
+          ),
+        ),
+        scaffoldBackgroundColor: Colors.white,
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF76608A),
+          brightness: Brightness.dark,
+          primary: const Color(0xFF76608A),
+          surface: const Color(0xFF212121),
+          background: const Color(0xFF212121),
+        ),
+        scaffoldBackgroundColor: const Color(0xFF212121),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: const Color(0xFF212121),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          titleTextStyle: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 18,
+          ),
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: const Color(0xFF212121),
+          indicatorColor: const Color(0xFF76608A),
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+        ),
       ),
       home: widget.initialWidget,
       debugShowCheckedModeBanner: false,

@@ -1,6 +1,6 @@
-# Snapi
+# Krabby
 
-Snapi  V-1 
+Krabby  V-1 
 ---------------
 • Background Screenshot Detection — Automatically detects screenshots in the background.
 
@@ -22,11 +22,11 @@ Snapi  V-1
 
 ===================================================================================
 
-Snapi  V-2 
+Krabby  V-2 
 --------------
 
 <!-- app name  -->
 
 Zapture
-Snapi  
+Krabby  
 Flink 

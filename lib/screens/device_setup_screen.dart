@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import '../services/device_setup_service.dart';
 
 class DeviceSetupScreen extends StatefulWidget {
@@ -71,27 +71,25 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
   }
 
   Future<void> _handleSkip() async {
-    await showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Skip Setup?'),
         content: const Text(
-          'Without this permission, Snapi may not detect screenshots reliably in the background.\n\nYou can always enable it later from the app settings.',
+          'Without this permission, Krabby may not detect screenshots reliably in the background.\n\nYou can always enable it later from the app settings.',
         ),
         actions: [
-          CupertinoDialogAction(
-            isDestructiveAction: true,
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Go Back'),
+          ),
+          TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
               await DeviceSetupService.markSetupSkipped();
               widget.onDone();
             },
-            child: const Text('Skip Anyway'),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Go Back'),
+            child: const Text('Skip Anyway', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -100,16 +98,16 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark =
-        CupertinoTheme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (_isLoading) {
-      return const CupertinoPageScaffold(
-        child: Center(child: CupertinoActivityIndicator()),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    final Color accent = CupertinoTheme.of(context).primaryColor;
+    final Color accent = theme.colorScheme.primary;
     final String brand = _guide!['brand'] as String;
     final String description = _guide!['description'] as String;
     final String tip = _guide!['tip'] as String;
@@ -117,18 +115,13 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
     final String settingsLabel = _guide!['settingsLabel'] as String;
     final IconData settingsIcon = _guide!['settingsIcon'] as IconData;
 
-    final Color bgColor =
-        isDark ? CupertinoColors.black : CupertinoColors.white;
-    final Color cardColor = isDark
-        ? const Color(0xFF1C1C1E)
-        : CupertinoColors.systemGrey6.color;
-    final Color labelColor = isDark
-        ? CupertinoColors.white
-        : CupertinoColors.black;
+    final Color bgColor = theme.scaffoldBackgroundColor;
+    final Color cardColor = isDark ? const Color(0xFF1E293B) : Colors.grey.shade100;
+    final Color labelColor = theme.colorScheme.onSurface;
 
-    return CupertinoPageScaffold(
+    return Scaffold(
       backgroundColor: bgColor,
-      child: SafeArea(
+      body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: Column(
@@ -142,7 +135,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                     children: [
                       const SizedBox(height: 20),
 
-                      // ── Header icon + titles ──────────────────────────────
+                      // Header
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -154,7 +147,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                               shape: BoxShape.circle,
                               border: Border.all(color: accent.withOpacity(0.2), width: 1.5),
                             ),
-                            child: Icon(CupertinoIcons.shield_fill, color: accent, size: 28),
+                            child: Icon(Icons.security, color: accent, size: 28),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -196,10 +189,9 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                         ],
                       ),
 
-
                       const SizedBox(height: 20),
 
-                      // ── Step 1: Grant Battery Permission ──────────────────
+                      // Step 1 Card
                       _StepCard(
                         step: 1,
                         accent: accent,
@@ -213,7 +205,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                             ? _DoneRow()
                             : _ActionButton(
                                 label: 'Grant Permission',
-                                icon: CupertinoIcons.lock_shield_fill,
+                                icon: Icons.security,
                                 accent: accent,
                                 isLoading: _isRequesting,
                                 filled: true,
@@ -223,7 +215,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                               ),
                       ),
 
-                      // ── Step 2: Open Device Settings (OEM only) ───────────
+                      // Step 2 Card (OEM only)
                       if (hasSettingsButton) ...[
                         const SizedBox(height: 16),
                         _StepCard(
@@ -250,14 +242,14 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
 
                       const SizedBox(height: 16),
 
-                      // ── Mascot Explanation Card ─────────────────────────────────
+                      // Mascot Info Card
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF233040) : const Color(0xFFF4F9FF),
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF4F9FF),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: CupertinoColors.activeBlue.withOpacity(0.25),
+                            color: accent.withOpacity(0.25),
                             width: 1.5,
                           ),
                         ),
@@ -269,17 +261,17 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                               height: 48,
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: CupertinoColors.white,
+                                color: Colors.white,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: CupertinoColors.activeBlue.withOpacity(0.15),
+                                    color: accent.withOpacity(0.15),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   )
                                 ],
                               ),
-                              child: Image.asset('assets/snapi.png'),
+                              child: Image.asset('assets/krabby.png'),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -290,8 +282,8 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                                     'Why do I need this?',
                                     style: TextStyle(
                                       fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                      fontWeight: FontWeight.bold,
+                                      color: labelColor,
                                       letterSpacing: -0.3,
                                     ),
                                   ),
@@ -300,8 +292,8 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                                     "I need this permission to automatically detect and organize your screenshots even when you're not using the app.",
                                     style: TextStyle(
                                       fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? CupertinoColors.systemGrey : const Color(0xFF555555),
+                                      fontWeight: FontWeight.w500,
+                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
                                       height: 1.4,
                                     ),
                                   ),
@@ -318,55 +310,41 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
                 ),
               ),
 
-              // ── Bottom CTA ─────────────────────────────────────────────────
+              // Bottom CTA
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    GestureDetector(
-                      onTap: _permissionGranted ? _handleDone : null,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: double.infinity,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          gradient: _permissionGranted
-                              ? LinearGradient(colors: [accent, accent.withOpacity(0.8)])
-                              : LinearGradient(colors: [CupertinoColors.systemGrey4.resolveFrom(context), CupertinoColors.systemGrey4.resolveFrom(context)]),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _permissionGranted ? accent : theme.colorScheme.onSurface.withOpacity(0.12),
+                        minimumSize: const Size(double.infinity, 58),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16.0),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                "All Done — Let's Go!",
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: CupertinoColors.white,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                            ),
-                          ),
+                      ),
+                      onPressed: _permissionGranted ? _handleDone : null,
+                      child: Text(
+                        "All Done — Let's Go!",
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: _permissionGranted ? Colors.white : theme.colorScheme.onSurface.withOpacity(0.38),
+                          letterSpacing: -0.3,
                         ),
                       ),
                     ),
                     const SizedBox(height: 10),
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
+                    TextButton(
                       onPressed: _permissionGranted ? null : _handleSkip,
                       child: Text(
                         'Skip for Now',
                         style: TextStyle(
                           fontSize: 15,
                           color: _permissionGranted
-                              ? CupertinoColors.systemGrey
-                              : CupertinoColors.secondaryLabel
-                                  .resolveFrom(context),
+                              ? Colors.grey
+                              : theme.colorScheme.primary,
                         ),
                       ),
                     ),
@@ -381,7 +359,6 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
   }
 }
 
-// ── Step Card ──────────────────────────────────────────────────────────────────
 class _StepCard extends StatelessWidget {
   final int step;
   final Color accent;
@@ -407,30 +384,31 @@ class _StepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutCubic,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDone ? CupertinoColors.systemGreen.withOpacity(0.05) : cardColor,
+        color: isDone ? Colors.green.withOpacity(0.05) : cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDone
-              ? CupertinoColors.systemGreen.withOpacity(0.5)
+              ? Colors.green.withOpacity(0.5)
               : accent.withOpacity(0.2),
           width: 1.5,
         ),
         boxShadow: isDone
             ? [
                 BoxShadow(
-                  color: CupertinoColors.systemGreen.withOpacity(0.15),
+                  color: Colors.green.withOpacity(0.15),
                   blurRadius: 24,
                   offset: const Offset(0, 8),
                 )
               ]
             : [
                 BoxShadow(
-                  color: CupertinoColors.black.withOpacity(isDark ? 0.2 : 0.04),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 )
@@ -441,27 +419,23 @@ class _StepCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              // Step number / check badge
               AnimatedContainer(
                 duration: const Duration(milliseconds: 400),
                 curve: Curves.easeOutBack,
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: isDone
-                      ? CupertinoColors.systemGreen
-                      : accent.withOpacity(0.15),
+                  color: isDone ? Colors.green : accent.withOpacity(0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: isDone
-                      ? const Icon(CupertinoIcons.checkmark,
-                          color: CupertinoColors.white, size: 14)
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
                       : Text(
                           '$step',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.bold,
                             color: accent,
                           ),
                         ),
@@ -473,7 +447,7 @@ class _StepCard extends StatelessWidget {
                   title,
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.bold,
                     color: labelColor,
                   ),
                 ),
@@ -508,7 +482,7 @@ class _StepCard extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                                   height: 1.4,
                                 ),
                               ),
@@ -523,7 +497,7 @@ class _StepCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
                       height: 1.45,
                     ),
                   ),
@@ -536,7 +510,6 @@ class _StepCard extends StatelessWidget {
   }
 }
 
-// ── Action Button ──────────────────────────────────────────────────────────────
 class _ActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -556,22 +529,28 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SizedBox(
       width: double.infinity,
-      child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        color: filled ? accent : accent.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(14),
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: filled ? accent : accent.withOpacity(0.1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 13),
+        ),
         onPressed: onTap,
         child: isLoading
-            ? CupertinoActivityIndicator(
-                color: filled ? CupertinoColors.white : accent)
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon,
-                      color: filled ? CupertinoColors.white : accent,
-                      size: 16),
+                  Icon(icon, color: filled ? Colors.white : accent, size: 16),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
@@ -580,8 +559,8 @@ class _ActionButton extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: filled ? CupertinoColors.white : accent,
+                        fontWeight: FontWeight.bold,
+                        color: filled ? Colors.white : accent,
                       ),
                     ),
                   ),
@@ -592,20 +571,18 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-// ── Done Row ───────────────────────────────────────────────────────────────────
 class _DoneRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: [
-        const Icon(CupertinoIcons.checkmark_circle_fill,
-            color: CupertinoColors.systemGreen, size: 20),
-        const SizedBox(width: 8),
-        const Text(
+      children: const [
+        Icon(Icons.check_circle, color: Colors.green, size: 20),
+        SizedBox(width: 8),
+        Text(
           'Permission Granted',
           style: TextStyle(
-            color: CupertinoColors.systemGreen,
-            fontWeight: FontWeight.w700,
+            color: Colors.green,
+            fontWeight: FontWeight.bold,
             fontSize: 14,
           ),
         ),

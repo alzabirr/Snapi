@@ -50,8 +50,8 @@ class BackgroundService {
         autoStart: isEnabled,
         isForegroundMode: true,
         notificationChannelId: 'snapshot_memo_background',
-        initialNotificationTitle: 'Snapi',
-        initialNotificationContent: 'Snapi is monitoring',
+        initialNotificationTitle: 'Krabby',
+        initialNotificationContent: 'Krabby is monitoring',
         foregroundServiceNotificationId: 888,
       ),
       iosConfiguration: IosConfiguration(
@@ -99,8 +99,8 @@ class BackgroundService {
       if (service is AndroidServiceInstance) {
         service.setAsForegroundService();
         service.setForegroundNotificationInfo(
-          title: 'Snapi',
-          content: 'Snapi is monitoring',
+          title: 'Krabby',
+          content: 'Krabby is monitoring',
         );
       }
     }
@@ -151,8 +151,8 @@ class BackgroundService {
             if (service is AndroidServiceInstance) {
               service.setAsForegroundService();
               service.setForegroundNotificationInfo(
-                title: 'Snapi',
-                content: 'Snapi is monitoring',
+                title: 'Krabby',
+                content: 'Krabby is monitoring',
               );
             }
             PhotoManager.startChangeNotify();
@@ -160,8 +160,8 @@ class BackgroundService {
             try {
               await flutterLocalNotificationsPlugin.show(
                 888,
-                'Snapi',
-                'Snapi is monitoring',
+                'Krabby',
+                'Krabby is monitoring',
                 const NotificationDetails(
                   android: AndroidNotificationDetails(
                     'snapshot_memo_background',
@@ -202,8 +202,8 @@ class BackgroundService {
     try {
       await flutterLocalNotificationsPlugin.show(
         888, // Must match foregroundServiceNotificationId
-        'Snapi',
-        'Snapi is monitoring',
+        'Krabby',
+        'Krabby is monitoring',
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'snapshot_memo_background',
@@ -236,8 +236,8 @@ class BackgroundService {
         if (!hasNotification) {
           await flutterLocalNotificationsPlugin.show(
             888,
-            'Snapi',
-            'Snapi is monitoring',
+            'Krabby',
+            'Krabby is monitoring',
             const NotificationDetails(
               android: AndroidNotificationDetails(
                 'snapshot_memo_background',

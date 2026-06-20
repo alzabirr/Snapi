@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import 'capture_details_screen.dart';
@@ -52,64 +52,90 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('Search'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(
-            _showFavoritesOnly ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-            color: _showFavoritesOnly ? CupertinoColors.systemRed : CupertinoColors.activeBlue,
-          ),
-          onPressed: () {
-            setState(() {
-              _showFavoritesOnly = !_showFavoritesOnly;
-              _filterItems();
-            });
-          },
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
         ),
+        title: const Text('Search'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
+              color: _showFavoritesOnly ? Colors.red : theme.colorScheme.primary,
+            ),
+            onPressed: () {
+              setState(() {
+                _showFavoritesOnly = !_showFavoritesOnly;
+                _filterItems();
+              });
+            },
+          ),
+        ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: CupertinoSearchTextField(
+              child: SearchBar(
                 controller: _searchController,
-                placeholder: 'Search notes, text inside images...',
+                hintText: 'Search notes, text inside images...',
+                leading: const Icon(Icons.search),
+                elevation: MaterialStateProperty.all(0),
+                backgroundColor: MaterialStateProperty.all(
+                  isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
+                ),
+                shape: MaterialStateProperty.all(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
               ),
             ),
             Expanded(
               child: _filteredItems.isEmpty
-                  ? const Center(child: Text('No matching captures found.'))
+                  ? Center(
+                      child: Text(
+                        'No matching captures found.',
+                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                      ),
+                    )
                   : ListView.builder(
                       itemCount: _filteredItems.length,
                       itemBuilder: (context, index) {
                         final item = _filteredItems[index];
-                        final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
                         
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                          child: GestureDetector(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: InkWell(
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                CupertinoPageRoute(
+                                MaterialPageRoute(
                                   builder: (context) => CaptureDetailsScreen(item: item),
                                 ),
                               );
                               _loadItems();
                             },
+                            borderRadius: BorderRadius.circular(20),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                               decoration: BoxDecoration(
-                                color: CupertinoColors.transparent,
+                                color: Colors.transparent,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  // Premium Image Thumbnail
                                   Hero(
                                     tag: 'search_item_${item.id}',
                                     child: Container(
@@ -119,7 +145,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                         borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: CupertinoColors.black.withOpacity(0.1),
+                                            color: Colors.black.withOpacity(0.1),
                                             blurRadius: 5,
                                             offset: const Offset(0, 2),
                                           )
@@ -135,27 +161,24 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ),
                                   const SizedBox(width: 16),
                                   
-                                  // Content Info
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        // Note / Title
                                         Text(
                                           item.note.isNotEmpty ? item.note : 'Untitled Capture',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             fontSize: 16,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.bold,
                                             letterSpacing: -0.3,
-                                            color: CupertinoColors.label.resolveFrom(context),
+                                            color: theme.colorScheme.onSurface,
                                           ),
                                         ),
                                         const SizedBox(height: 6),
                                         
-                                        // Extracted Text Snippet (if any)
                                         if (item.extractedText.isNotEmpty) ...[
                                           Text(
                                             item.extractedText.replaceAll('\n', ' '),
@@ -163,33 +186,32 @@ class _SearchScreenState extends State<SearchScreen> {
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: CupertinoColors.systemGrey.resolveFrom(context),
+                                              color: theme.colorScheme.onSurface.withOpacity(0.6),
                                               height: 1.2,
                                             ),
                                           ),
                                           const SizedBox(height: 8),
                                         ],
 
-                                        // Category Pill & Date
                                         Row(
                                           children: [
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                               decoration: BoxDecoration(
-                                                color: CupertinoColors.activeBlue.withOpacity(0.1),
+                                                color: theme.colorScheme.primary.withOpacity(0.1),
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(CupertinoIcons.folder_fill, size: 10, color: CupertinoColors.activeBlue),
+                                                  Icon(Icons.folder, size: 10, color: theme.colorScheme.primary),
                                                   const SizedBox(width: 4),
                                                   Text(
                                                     item.category.isEmpty ? 'Uncategorized' : item.category,
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                       fontSize: 10,
                                                       fontWeight: FontWeight.bold,
-                                                      color: CupertinoColors.activeBlue,
+                                                      color: theme.colorScheme.primary,
                                                     ),
                                                   ),
                                                 ],
@@ -201,7 +223,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w600,
-                                                color: CupertinoColors.systemGrey.withOpacity(0.8),
+                                                color: theme.colorScheme.onSurface.withOpacity(0.5),
                                               ),
                                             ),
                                           ],
@@ -210,11 +232,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                     ),
                                   ),
                                   
-                                  // Trailing Icons
                                   if (item.isFavorite)
                                     const Padding(
                                       padding: EdgeInsets.only(right: 8.0),
-                                      child: Icon(CupertinoIcons.heart_fill, color: CupertinoColors.systemRed, size: 20),
+                                      child: Icon(Icons.favorite, color: Colors.red, size: 20),
                                     ),
                                 ],
                               ),

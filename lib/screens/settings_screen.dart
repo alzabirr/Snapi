@@ -1,9 +1,8 @@
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/material.dart' show Colors, Material;
 import 'package:permission_handler/permission_handler.dart';
 import '../main.dart';
 import '../services/database_service.dart';
@@ -51,6 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       _loadStats();
     }
   }
+
   void _loadStats() async {
     final prefs = await SharedPreferences.getInstance();
     final mic = await Permission.microphone.status;
@@ -70,7 +70,6 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       _micStatus = mic;
       _notificationStatus = notif;
       _galleryStatus = gallery;
-      // Use the same suspicious count check as Home Screen for consistency
       _isGalleryLimited = (gallery == PermissionState.limited) || 
                           (phPhotos == PermissionStatus.limited) ||
                           (gallery == PermissionState.authorized && assetCount > 0 && assetCount < 5);
@@ -88,7 +87,6 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_screenshot_notifications', value);
     
-    // Notify the background service immediately
     FlutterBackgroundService().invoke('updateConfig', {
       'showNotifications': value,
     });
@@ -97,6 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       _showScreenshotNotifications = value;
     });
   }
+
   Future<void> _toggleAutoSmartFolders(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('auto_smart_folders', value);
@@ -125,7 +124,6 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       if (isRunning) {
         service.invoke('stopService');
       }
-      // Force cancel notification from main UI immediately
       final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
       await flutterLocalNotificationsPlugin.cancel(888);
     }
@@ -133,196 +131,237 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
-      navigationBar: CupertinoNavigationBar(
-        transitionBetweenRoutes: false,
-        middle: const Text('Settings'),
-        backgroundColor: (isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7)).withOpacity(0.8),
-        border: null,
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text(
+          'Settings',
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: ListView(
           physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           children: [
-            // iOS Style Profile/Stats Header (Interactive)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              child: GestureDetector(
-                onTap: () => _showAssistantModal(context),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: isDark ? [] : [
-                      BoxShadow(
-                        color: CupertinoColors.black.withOpacity(0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+            // Profile Card
+            GestureDetector(
+              onTap: () => _showAssistantModal(context),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: theme.colorScheme.onSurface.withOpacity(0.08),
+                    width: 0.5,
                   ),
-                  child: Row(
-                    children: [
-                      const FloatingProfileIcon(),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Snapi Assistant',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                  ),
+                  boxShadow: isDark ? [] : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const FloatingProfileIcon(),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Krabby Assistant',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.onSurface,
                                 ),
-                                const SizedBox(width: 6),
-                                const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 16),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Your personal AI companion',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: CupertinoColors.systemGrey,
                               ),
+                              const SizedBox(width: 6),
+                              Icon(Icons.auto_awesome, color: theme.colorScheme.primary, size: 16),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Your personal AI companion',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey3, size: 18),
-                    ],
-                  ),
+                    ),
+                    Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withOpacity(0.4), size: 20),
+                  ],
                 ),
               ),
             ),
+            const SizedBox(height: 20),
 
-            CupertinoListSection.insetGrouped(
-              backgroundColor: CupertinoColors.transparent,
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              children: [
-                CupertinoListTile(
-                  title: const Text('Saved Captures'),
-                  leading: _buildIOSIcon(CupertinoIcons.doc_on_clipboard_fill, CupertinoColors.systemGreen),
-                  trailing: Text('$_totalCaptures', style: const TextStyle(color: CupertinoColors.systemGrey)),
-                ),
-              ],
+            // Section 1: Stats
+            _buildSectionHeader('General Info'),
+            Card(
+              elevation: 0,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08), width: 0.5),
+              ),
+              child: ListTile(
+                leading: _buildIcon(Icons.assignment_turned_in_outlined, Colors.green),
+                title: const Text('Saved Captures'),
+                trailing: Text('$_totalCaptures', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface.withOpacity(0.7))),
+              ),
             ),
+            const SizedBox(height: 20),
 
-            CupertinoListSection.insetGrouped(
-              backgroundColor: CupertinoColors.transparent,
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              children: [
-                CupertinoListTile(
-                  title: const Text('Dark Mode'),
-                  leading: _buildIOSIcon(CupertinoIcons.moon_fill, CupertinoColors.systemPurple),
-                  trailing: CupertinoSwitch(
+            // Section 2: Personalization
+            _buildSectionHeader('Appearance & AI'),
+            Card(
+              elevation: 0,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08), width: 0.5),
+              ),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    secondary: _buildIcon(Icons.dark_mode_outlined, Colors.purple),
+                    title: const Text('Dark Mode'),
                     value: isDark,
                     onChanged: (value) {
-                      SnapiApp.of(context).toggleTheme();
+                      KrabbyApp.of(context).toggleTheme();
+                    },
+                    activeColor: theme.colorScheme.primary,
+                  ),
+                  Divider(height: 1, color: theme.colorScheme.onSurface.withOpacity(0.08)),
+                  ListTile(
+                    leading: _buildIcon(Icons.auto_awesome_outlined, Colors.blue),
+                    title: const Text('Smart Auto-Organize'),
+                    subtitle: const Text('AI-powered sorting • Learn how it works'),
+                    trailing: Switch(
+                      value: _autoSmartFolders,
+                      onChanged: _toggleAutoSmartFolders,
+                      activeColor: theme.colorScheme.primary,
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SmartOrganizeDetailScreen()),
+                      );
                     },
                   ),
-                ),
-                CupertinoListTile(
-                  title: const Text('Smart Auto-Organize'),
-                  subtitle: const Text('AI-powered sorting • Tap to see how it works'),
-                  leading: _buildIOSIcon(CupertinoIcons.sparkles, CupertinoColors.activeBlue),
-                  trailing: CupertinoSwitch(
-                    value: _autoSmartFolders,
-                    onChanged: _toggleAutoSmartFolders,
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(builder: (context) => const SmartOrganizeDetailScreen()),
-                    );
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(height: 20),
 
-            CupertinoListSection.insetGrouped(
-              backgroundColor: CupertinoColors.transparent,
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              children: [
-                CupertinoListTile(
-                  title: const Text('Recycle Bin'),
-                  leading: _buildIOSIcon(CupertinoIcons.trash_fill, CupertinoColors.systemOrange),
-                  trailing: const CupertinoListTileChevron(),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      CupertinoPageRoute(builder: (context) => const RecycleBinScreen()),
-                    );
-                    _loadStats();
-                  },
-                ),
-              ],
+            // Section 3: Utilities
+            _buildSectionHeader('Trash Management'),
+            Card(
+              elevation: 0,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08), width: 0.5),
+              ),
+              child: ListTile(
+                leading: _buildIcon(Icons.delete_outline_rounded, Colors.orange),
+                title: const Text('Recycle Bin'),
+                trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const RecycleBinScreen()),
+                  );
+                  _loadStats();
+                },
+              ),
             ),
+            const SizedBox(height: 20),
 
-            CupertinoListSection.insetGrouped(
-              backgroundColor: CupertinoColors.transparent,
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              header: const Text('App Permissions'),
-              children: [
-                CupertinoListTile(
-                  title: const Text('Background Monitoring'),
-                  leading: _buildIOSIcon(CupertinoIcons.bolt_fill, CupertinoColors.systemYellow),
-                  trailing: CupertinoSwitch(
+            // Section 4: System Permissions
+            _buildSectionHeader('App Permissions'),
+            Card(
+              elevation: 0,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08), width: 0.5),
+              ),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    secondary: _buildIcon(Icons.electric_bolt_outlined, Colors.yellow.shade800),
+                    title: const Text('Background Monitoring'),
                     value: _isMonitoring,
                     onChanged: _toggleMonitoring,
+                    activeColor: theme.colorScheme.primary,
                   ),
-                ),
-
-                CupertinoListTile(
-                  title: const Text('Screenshot Detect Alert'),
-                  leading: _buildIOSIcon(CupertinoIcons.eye_fill, CupertinoColors.systemTeal),
-                  trailing: CupertinoSwitch(
+                  Divider(height: 1, color: theme.colorScheme.onSurface.withOpacity(0.08)),
+                  SwitchListTile(
+                    secondary: _buildIcon(Icons.notifications_active_outlined, Colors.teal),
+                    title: const Text('Screenshot Detect Alert'),
                     value: _showScreenshotNotifications,
                     onChanged: _toggleScreenshotNotifications,
+                    activeColor: theme.colorScheme.primary,
                   ),
-                ),
-                CupertinoListTile(
-                  title: const Text('Gallery Access'),
-                  leading: _buildIOSIcon(CupertinoIcons.photo_fill, CupertinoColors.systemPink),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _isGalleryLimited ? 'Limited' : (_galleryStatus.isAuth ? 'Allowed' : 'Denied'),
-                        style: TextStyle(
-                          color: _isGalleryLimited ? CupertinoColors.systemOrange : (_galleryStatus.isAuth ? CupertinoColors.systemGrey : CupertinoColors.systemRed),
+                  Divider(height: 1, color: theme.colorScheme.onSurface.withOpacity(0.08)),
+                  ListTile(
+                    leading: _buildIcon(Icons.photo_library_outlined, Colors.pink),
+                    title: const Text('Gallery Access'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _isGalleryLimited ? 'Limited' : (_galleryStatus.isAuth ? 'Allowed' : 'Denied'),
+                          style: TextStyle(
+                            color: _isGalleryLimited ? Colors.orange : (_galleryStatus.isAuth ? theme.colorScheme.onSurface.withOpacity(0.6) : Colors.red),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey3, size: 14),
-                    ],
+                        const SizedBox(width: 6),
+                        Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withOpacity(0.4), size: 16),
+                      ],
+                    ),
+                    onTap: () => openAppSettings(),
                   ),
-                  onTap: () => openAppSettings(),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(height: 20),
 
-            CupertinoListSection.insetGrouped(
-              backgroundColor: CupertinoColors.transparent,
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              children: [
-                CupertinoListTile(
-                  title: const Text('Privacy Policy'),
-                  leading: _buildIOSIcon(CupertinoIcons.shield_fill, CupertinoColors.systemGreen),
-                  trailing: const CupertinoListTileChevron(),
-                  onTap: () => _showPrivacyPolicy(context),
-                ),
-              ],
+            // Section 5: Legal
+            _buildSectionHeader('Info & Security'),
+            Card(
+              elevation: 0,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08), width: 0.5),
+              ),
+              child: ListTile(
+                leading: _buildIcon(Icons.security_outlined, Colors.green),
+                title: const Text('Privacy Policy'),
+                trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                onTap: () => _showPrivacyPolicy(context),
+              ),
             ),
             const SizedBox(height: 100),
           ],
@@ -331,35 +370,49 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     );
   }
 
-  Widget _buildIOSIcon(IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(6),
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 8),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1.2,
+        ),
       ),
-      child: Icon(icon, color: CupertinoColors.white, size: 20),
     );
   }
 
-  Widget _buildMinimalStat(String label, String value) {
-    // Keep it just in case, but unused in this layout
-    return const SizedBox.shrink();
+  Widget _buildIcon(IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, color: color, size: 20),
+    );
   }
 
   void _showAssistantModal(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    showCupertinoModalPopup(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           height: MediaQuery.of(context).size.height * 0.7,
           decoration: BoxDecoration(
-            color: (isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.85),
+            color: (isDark ? const Color(0xFF1E293B) : Colors.white).withOpacity(0.9),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
             border: Border.all(
-              color: (isDark ? CupertinoColors.white : CupertinoColors.activeBlue).withOpacity(0.1),
+              color: theme.colorScheme.onSurface.withOpacity(0.08),
             ),
           ),
           child: Stack(
@@ -375,7 +428,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        CupertinoColors.activeBlue.withOpacity(isDark ? 0.2 : 0.1),
+                        theme.colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
                         Colors.transparent,
                       ],
                     ),
@@ -392,7 +445,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                       width: 36,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: CupertinoColors.systemGrey4.withOpacity(0.5),
+                        color: theme.colorScheme.onSurface.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
@@ -411,19 +464,20 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: CupertinoColors.activeBlue.withOpacity(0.05),
+                          color: theme.colorScheme.primary.withOpacity(0.05),
                         ),
-                        child: Image.asset('assets/snapi.png', width: 140, height: 140),
+                        child: Image.asset('assets/krabby.png', width: 140, height: 140),
                       ),
                     ),
                     
                     const SizedBox(height: 24),
-                    const Text(
-                      "Meet your Snapi Assistant",
+                    Text(
+                      "Meet your Krabby Assistant",
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 26, 
+                        fontSize: 24, 
                         fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.onSurface,
                         letterSpacing: -1,
                       ),
                     ),
@@ -432,8 +486,8 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                       "I'm here to help you manage your memories.\nI'm learning more every day!",
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 16, 
-                        color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                        fontSize: 15, 
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
                         height: 1.5,
                         fontWeight: FontWeight.w500,
                       ),
@@ -447,33 +501,29 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                       runSpacing: 10,
                       alignment: WrapAlignment.center,
                       children: [
-                        _buildAssistantChip(CupertinoIcons.lightbulb_fill, "View Tips"),
-                        _buildAssistantChip(CupertinoIcons.bolt_fill, "Quick Start"),
-                        _buildAssistantChip(CupertinoIcons.question_circle_fill, "Get Help"),
+                        _buildAssistantChip(Icons.lightbulb, "View Tips"),
+                        _buildAssistantChip(Icons.bolt, "Quick Start"),
+                        _buildAssistantChip(Icons.help_center, "Get Help"),
                       ],
                     ),
                     
                     const Spacer(),
                     
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => Navigator.pop(context),
-                      child: Container(
-                        width: double.infinity,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.activeBlue,
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
-                        child: const Center(
-                          child: Text(
-                            "Coming soon !",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Coming soon !",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -489,55 +539,25 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Widget _buildAssistantChip(IconData icon, String label) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: (isDark ? CupertinoColors.white : CupertinoColors.activeBlue).withOpacity(0.08),
+        color: theme.colorScheme.primary.withOpacity(0.08),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: CupertinoColors.activeBlue),
+          Icon(icon, size: 16, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: CupertinoColors.activeBlue,
+              color: theme.colorScheme.primary,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAutoOrganizeInfo(BuildContext context) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Smart Auto-Organize'),
-        content: const Column(
-          children: [
-            SizedBox(height: 12),
-            Text(
-              'Snapi uses AI to read the text inside your screenshots and automatically suggests the best folder for them.',
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 12),
-            Text(
-              'If a matching folder doesn\'t exist, Snapi will even create it for you! You always have the final say before saving.',
-              style: TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('Got it'),
-            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
@@ -545,134 +565,116 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   void _showPrivacyPolicy(BuildContext context) {
-    showGeneralDialog(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: '',
-      barrierColor: CupertinoColors.black.withOpacity(0.55),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        final curveValue = Curves.easeOutBack.transform(anim1.value);
-        final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-        
-        return Transform.scale(
-          scale: curveValue,
-          child: Opacity(
-            opacity: anim1.value.clamp(0.0, 1.0),
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.45 : 0.12),
-                      blurRadius: 36,
-                      offset: const Offset(0, 16),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Privacy Shield Header Icon
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.activeBlue.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          CupertinoIcons.shield_fill,
-                          color: CupertinoColors.activeBlue,
-                          size: 40,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Privacy Policy',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w400,
-                          color: isDark ? CupertinoColors.white : const Color(0xFF1F1F1F),
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Your trust is our priority. Snapi is designed to protect your personal space.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w400,
-                          color: isDark ? CupertinoColors.systemGrey : const Color(0xFF555555),
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Bullet Points
-                      _buildPrivacyItem(
-                        context,
-                        CupertinoIcons.device_phone_portrait,
-                        '100% Local Processing',
-                        'All text recognition and organization happen locally on your phone.',
-                        isDark,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildPrivacyItem(
-                        context,
-                        CupertinoIcons.eye_slash,
-                        'Zero Cloud Uploads',
-                        'We never upload your screenshots, voice notes, or metadata to any servers.',
-                        isDark,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildPrivacyItem(
-                        context,
-                        CupertinoIcons.lock_fill,
-                        'Completely Private',
-                        'No analytics or trackers. Your personal database belongs only to you.',
-                        isDark,
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Dismiss Button
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: double.infinity,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.activeBlue,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'Got it',
-                              style: TextStyle(
-                                color: CupertinoColors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+      builder: (context) => Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: theme.colorScheme.onSurface.withOpacity(0.08), width: 0.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.45 : 0.12),
+                blurRadius: 36,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Privacy Shield Header Icon
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.security,
+                    color: theme.colorScheme.primary,
+                    size: 40,
                   ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                Text(
+                  'Privacy Policy',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Your trust is our priority. Krabby is designed to protect your personal space.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w400,
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Bullet Points
+                _buildPrivacyItem(
+                  context,
+                  Icons.phone_android,
+                  '100% Local Processing',
+                  'All text recognition and organization happen locally on your phone.',
+                ),
+                const SizedBox(height: 12),
+                _buildPrivacyItem(
+                  context,
+                  Icons.cloud_off,
+                  'Zero Cloud Uploads',
+                  'We never upload your screenshots, voice notes, or metadata to any servers.',
+                ),
+                const SizedBox(height: 12),
+                _buildPrivacyItem(
+                  context,
+                  Icons.lock_outline,
+                  'Completely Private',
+                  'No analytics or trackers. Your personal database belongs only to you.',
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Dismiss Button
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Got it',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -681,14 +683,14 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     IconData icon,
     String title,
     String desc,
-    bool isDark,
   ) {
+    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
           icon,
-          color: CupertinoColors.activeBlue,
+          color: theme.colorScheme.primary,
           size: 18,
         ),
         const SizedBox(width: 12),
@@ -700,8 +702,8 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 title,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? CupertinoColors.white : const Color(0xFF1E1E1E),
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),
@@ -710,7 +712,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
-                  color: isDark ? CupertinoColors.systemGrey2 : const Color(0xFF666666),
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                   height: 1.3,
                 ),
               ),

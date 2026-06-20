@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,7 +9,7 @@ import 'package:auto_start_flutter/auto_start_flutter.dart' as auto_start;
 class DeviceSetupService {
   static const _prefSetupDone = 'device_setup_guide_done';
   static const _prefSetupSkipped = 'device_setup_skipped';
-  static const _channel = MethodChannel('com.snapi/device_settings');
+  static const _channel = MethodChannel('com.krabby/device_settings');
 
   /// Returns the phone manufacturer in lowercase
   static Future<String> getManufacturer() async {
@@ -101,7 +101,7 @@ class DeviceSetupService {
         'tip': '',
         'hasSettingsButton': true,
         'settingsLabel': 'Open App Settings',
-        'settingsIcon': CupertinoIcons.settings,
+        'settingsIcon': Icons.settings,
       };
     } else if (manufacturer.contains('oneplus')) {
       return {
@@ -112,7 +112,7 @@ class DeviceSetupService {
         'tip': '',
         'hasSettingsButton': true,
         'settingsLabel': 'Open App Settings',
-        'settingsIcon': CupertinoIcons.settings,
+        'settingsIcon': Icons.settings,
       };
     } else if (manufacturer.contains('oppo') ||
         manufacturer.contains('realme')) {
@@ -124,7 +124,7 @@ class DeviceSetupService {
         'tip': '',
         'hasSettingsButton': true,
         'settingsLabel': 'Open App Settings',
-        'settingsIcon': CupertinoIcons.settings,
+        'settingsIcon': Icons.settings,
       };
     } else if (manufacturer.contains('vivo')) {
       return {
@@ -135,7 +135,7 @@ class DeviceSetupService {
         'tip': '',
         'hasSettingsButton': true,
         'settingsLabel': 'Open App Settings',
-        'settingsIcon': CupertinoIcons.settings,
+        'settingsIcon': Icons.settings,
       };
     } else if (manufacturer.contains('huawei') ||
         manufacturer.contains('honor')) {
@@ -147,7 +147,7 @@ class DeviceSetupService {
         'tip': '',
         'hasSettingsButton': true,
         'settingsLabel': 'Open App Settings',
-        'settingsIcon': CupertinoIcons.settings,
+        'settingsIcon': Icons.settings,
       };
     } else if (manufacturer.contains('samsung')) {
       return {
@@ -158,18 +158,18 @@ class DeviceSetupService {
         'tip': '',
         'hasSettingsButton': true,
         'settingsLabel': 'Open App Settings',
-        'settingsIcon': CupertinoIcons.settings,
+        'settingsIcon': Icons.settings,
       };
     } else {
       return {
         'brand': 'Your Device',
         'description':
             '1. Tap on "Battery" or "App battery usage"\n2. Enable "Allow background activity"',
-        'color': CupertinoColors.activeBlue,
+        'color': const Color(0xFF2563EB),
         'tip': '',
         'hasSettingsButton': true,
         'settingsLabel': 'Open App Settings',
-        'settingsIcon': CupertinoIcons.settings,
+        'settingsIcon': Icons.settings,
       };
     }
   }

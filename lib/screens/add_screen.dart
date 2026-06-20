@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
@@ -117,8 +117,10 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
   }
 
   void _showAlbumPicker() {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => _AlbumPicker(
         albums: _albums,
         onSelected: (album) {
@@ -130,16 +132,17 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
   }
 
   void _showNotePopup(AssetEntity asset) {
+    final theme = Theme.of(context);
     final existingItems = DatabaseService.getAllItems();
     final alreadyExists = existingItems.any((item) => item.id == asset.id);
     if (alreadyExists) {
-      showCupertinoDialog(
+      showDialog(
         context: context,
-        builder: (context) => CupertinoAlertDialog(
+        builder: (context) => AlertDialog(
           title: const Text('Already Added'),
           content: const Text('This capture is already in your list.'),
           actions: [
-            CupertinoDialogAction(
+            TextButton(
               child: const Text('OK'),
               onPressed: () => Navigator.pop(context),
             ),
@@ -149,47 +152,60 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
       return;
     }
 
-    showCupertinoModalPopup(
+    showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => ScreenshotPopup(
-        asset: asset,
-        onSave: (note, category, extractedText) async {
-          final file = await asset.file;
-          if (file == null) return;
+      barrierLabel: 'Screenshot Popup',
+      barrierColor: Colors.black.withOpacity(0.4),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: ScreenshotPopup(
+            asset: asset,
+            onSave: (note, category, extractedText) async {
+              final file = await asset.file;
+              if (file == null) return;
 
-          final newItem = ScreenshotItem(
-            id: asset.id,
-            path: file.path,
-            note: note,
-            category: category,
-            createdAt: DateTime.now(),
-            extractedText: extractedText,
-          );
-          await DatabaseService.addItem(newItem);
-        },
-      ),
+              final newItem = ScreenshotItem(
+                id: asset.id,
+                path: file.path,
+                note: note,
+                category: category,
+                createdAt: DateTime.now(),
+                extractedText: extractedText,
+              );
+              await DatabaseService.addItem(newItem);
+            },
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          child: child,
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF000000) : const Color(0xFFF9F9FB);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
-    return CupertinoPageScaffold(
-      backgroundColor: backgroundColor,
-      child: Stack(
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Stack(
         children: [
-          // Background Glows for Premium Look
-          // Background Glows removed for pure dark feel as requested
-
           CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              CupertinoSliverNavigationBar(
-                transitionBetweenRoutes: false,
-                largeTitle: GestureDetector(
+              SliverAppBar.large(
+                title: GestureDetector(
                   onTap: _showAlbumPicker,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -197,7 +213,7 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                       Text(
                         _selectedAlbum?.name ?? 'Library',
                         style: TextStyle(
-                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          color: theme.colorScheme.onSurface,
                           letterSpacing: -1.2,
                           fontWeight: FontWeight.w800,
                         ),
@@ -206,21 +222,22 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: isDark ? CupertinoColors.systemGrey.withOpacity(0.1) : CupertinoColors.activeBlue.withOpacity(0.12),
+                          color: theme.colorScheme.primary.withOpacity(0.12),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(CupertinoIcons.chevron_down, size: 12, color: isDark ? CupertinoColors.systemGrey : CupertinoColors.activeBlue),
+                        child: Icon(Icons.keyboard_arrow_down, size: 16, color: theme.colorScheme.primary),
                       ),
                     ],
                   ),
                 ),
-                backgroundColor: backgroundColor.withOpacity(0.7),
-                border: null,
+                backgroundColor: theme.scaffoldBackgroundColor,
+                elevation: 0,
+                scrolledUnderElevation: 0,
               ),
               
               if (_isLoading)
-                const SliverFillRemaining(
-                  child: Center(child: CupertinoActivityIndicator(radius: 15)),
+                SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator(color: theme.colorScheme.primary)),
                 )
               else if (_headers.isEmpty)
                 SliverFillRemaining(
@@ -228,14 +245,14 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(CupertinoIcons.photo_on_rectangle, size: 80, color: CupertinoColors.systemGrey.withOpacity(0.3)),
+                        Icon(Icons.photo_library_outlined, size: 80, color: theme.colorScheme.onSurface.withOpacity(0.3)),
                         const SizedBox(height: 20),
                         Text(
                           'No memories found',
                           style: TextStyle(
-                            color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
                             fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -258,7 +275,7 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w900,
-                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                color: theme.colorScheme.onSurface,
                                 letterSpacing: -1.0,
                               ),
                             ),
@@ -267,7 +284,7 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                               '${assets.length} items',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: CupertinoColors.systemGrey.resolveFrom(context).withOpacity(0.6),
+                                color: theme.colorScheme.onSurface.withOpacity(0.5),
                                 fontWeight: FontWeight.w600,
                                 height: 2.0,
                               ),
@@ -278,7 +295,7 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                                 padding: const EdgeInsets.only(bottom: 8.0),
                                 child: Container(
                                   height: 0.5,
-                                  color: CupertinoColors.separator.resolveFrom(context).withOpacity(0.3),
+                                  color: theme.colorScheme.onSurface.withOpacity(0.12),
                                 ),
                               ),
                             ),
@@ -309,7 +326,7 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                                       borderRadius: BorderRadius.circular(20),
                                       boxShadow: isDark ? [] : [
                                         BoxShadow(
-                                          color: CupertinoColors.black.withOpacity(0.08),
+                                          color: Colors.black.withOpacity(0.08),
                                           blurRadius: 15,
                                           offset: const Offset(0, 6),
                                         ),
@@ -321,7 +338,6 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                                         fit: StackFit.expand,
                                         children: [
                                           _AssetThumbnail(asset: asset),
-                                          // Enhanced Gradient Overlay
                                           Positioned.fill(
                                             child: Container(
                                               decoration: BoxDecoration(
@@ -330,20 +346,19 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
                                                   end: Alignment.bottomCenter,
                                                   stops: const [0.5, 1.0],
                                                   colors: [
-                                                    CupertinoColors.black.withOpacity(0.0),
-                                                    CupertinoColors.black.withOpacity(0.35),
+                                                    Colors.transparent,
+                                                    Colors.black.withOpacity(0.35),
                                                   ],
                                                 ),
                                               ),
                                             ),
                                           ),
-                                          // Quick Selection Shine Effect (Inner Border)
                                           Positioned.fill(
                                             child: Container(
                                               decoration: BoxDecoration(
                                                 borderRadius: BorderRadius.circular(20),
                                                 border: Border.all(
-                                                  color: CupertinoColors.white.withOpacity(0.08),
+                                                  color: Colors.white.withOpacity(0.08),
                                                   width: 1.0,
                                                 ),
                                               ),
@@ -432,15 +447,14 @@ class _AssetThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return FutureBuilder<Uint8List?>(
       future: asset.thumbnailData,
       builder: (context, snapshot) {
         final data = snapshot.data;
         if (data == null) {
           return Container(
-            color: CupertinoTheme.of(context).brightness == Brightness.dark 
-                ? const Color(0xFF151515) 
-                : CupertinoColors.systemGrey6,
+            color: theme.colorScheme.surfaceVariant,
           );
         }
         return Image.memory(
@@ -461,17 +475,18 @@ class _AlbumPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
       child: Container(
         height: MediaQuery.of(context).size.height * 0.8,
         decoration: BoxDecoration(
-          color: (isDark ? const Color(0xFF121212) : CupertinoColors.white).withOpacity(0.85),
+          color: (isDark ? const Color(0xFF1E293B) : Colors.white).withOpacity(0.85),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
           border: Border.all(
-            color: CupertinoColors.white.withOpacity(0.05),
+            color: theme.colorScheme.onSurface.withOpacity(0.08),
             width: 0.5,
           ),
         ),
@@ -482,7 +497,7 @@ class _AlbumPicker extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey.withOpacity(0.3),
+                color: theme.colorScheme.onSurface.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -491,24 +506,24 @@ class _AlbumPicker extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Your Library',
                     style: TextStyle(
                       fontSize: 28, 
                       fontWeight: FontWeight.w900, 
+                      color: theme.colorScheme.onSurface,
                       letterSpacing: -1.5,
                     ),
                   ),
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
+                  IconButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Container(
+                    icon: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isDark ? CupertinoColors.systemGrey.withOpacity(0.1) : CupertinoColors.activeBlue.withOpacity(0.1),
+                        color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(CupertinoIcons.xmark, size: 18, color: isDark ? CupertinoColors.systemGrey : CupertinoColors.activeBlue),
+                      child: Icon(Icons.close, size: 18, color: theme.colorScheme.onSurface),
                     ),
                   ),
                 ],
@@ -526,19 +541,17 @@ class _AlbumPicker extends StatelessWidget {
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: isDark ? CupertinoColors.white.withOpacity(0.04) : CupertinoColors.black.withOpacity(0.02),
+                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.02),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: CupertinoColors.label.resolveFrom(context).withOpacity(0.03),
+                          color: theme.colorScheme.onSurface.withOpacity(0.03),
                           width: 0.5,
                         ),
                       ),
-                      child: CupertinoButton(
-                        padding: const EdgeInsets.all(14),
+                      child: TextButton(
                         onPressed: () => onSelected(album),
                         child: Row(
                           children: [
-                            // Album Thumbnail with Shadow
                             Container(
                               width: 75,
                               height: 75,
@@ -546,7 +559,7 @@ class _AlbumPicker extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(18),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: CupertinoColors.black.withOpacity(0.15),
+                                    color: Colors.black.withOpacity(0.15),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
                                   ),
@@ -558,8 +571,8 @@ class _AlbumPicker extends StatelessWidget {
                                 builder: (context, snapshot) {
                                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                                     return Container(
-                                      color: CupertinoColors.systemGrey6,
-                                      child: const Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey, size: 30),
+                                      color: theme.colorScheme.surfaceVariant,
+                                      child: Icon(Icons.photo_outlined, color: theme.colorScheme.onSurfaceVariant, size: 30),
                                     );
                                   }
                                   return _AssetThumbnail(asset: snapshot.data![0]);
@@ -567,7 +580,6 @@ class _AlbumPicker extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 22),
-                            // Album Info
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -577,7 +589,7 @@ class _AlbumPicker extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 19, 
                                       fontWeight: FontWeight.w800,
-                                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                      color: theme.colorScheme.onSurface,
                                       letterSpacing: -0.6,
                                     ),
                                   ),
@@ -588,15 +600,15 @@ class _AlbumPicker extends StatelessWidget {
                                       return Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: isDark ? CupertinoColors.systemGrey.withOpacity(0.15) : CupertinoColors.activeBlue.withOpacity(0.1),
+                                          color: theme.colorScheme.primary.withOpacity(0.12),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
                                           '${snapshot.data ?? '0'}',
                                           style: TextStyle(
-                                            color: isDark ? CupertinoColors.systemGrey : CupertinoColors.activeBlue,
+                                            color: theme.colorScheme.primary,
                                             fontSize: 12,
-                                            fontWeight: FontWeight.w700,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       );
@@ -606,9 +618,9 @@ class _AlbumPicker extends StatelessWidget {
                               ),
                             ),
                             Icon(
-                              CupertinoIcons.chevron_right, 
+                              Icons.chevron_right, 
                               size: 16, 
-                              color: CupertinoColors.systemGrey3.resolveFrom(context),
+                              color: theme.colorScheme.onSurface.withOpacity(0.4),
                             ),
                           ],
                         ),

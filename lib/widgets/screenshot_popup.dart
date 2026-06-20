@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/speech_service.dart';
@@ -37,7 +37,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
   File? _imageFile;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  String _extractedText = '';
+  final String _extractedText = '';
 
   @override
   void initState() {
@@ -62,7 +62,6 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     if (saved != null) {
       setState(() {
         _categories = saved;
-        // Only reset _selectedCategory if it's not in the new list
         if (!_categories.contains(_selectedCategory)) {
           _selectedCategory = _categories.first;
         }
@@ -80,7 +79,6 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
 
     if (mounted) {
       setState(() {});
-      // Run AI analysis only if we're not editing an existing item
       if (widget.initialCategory == null && _imageFile != null) {
         final prefs = await SharedPreferences.getInstance();
         final isAuto = prefs.getBool('auto_smart_folders') ?? true;
@@ -96,12 +94,11 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     try {
       final result = await AIService.analyzeAndSuggest(_imageFile!.path);
       if (mounted && result.category != 'Other') {
-        // Refresh categories list in case AIService created a new one silently
         await _loadCategories();
         
         setState(() {
           _suggestedCategory = result.category;
-          _selectedCategory = result.category; // Auto-select the suggestion
+          _selectedCategory = result.category;
         });
       }
     } catch (e) {
@@ -142,26 +139,28 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
 
   void _showAddCategoryDialog() {
     final TextEditingController controller = TextEditingController();
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('New Folder'),
         content: Padding(
           padding: const EdgeInsets.only(top: 12),
-          child: CupertinoTextField(
+          child: TextField(
             controller: controller,
-            placeholder: 'Folder Name',
+            decoration: const InputDecoration(
+              hintText: 'Folder Name',
+              border: OutlineInputBorder(),
+            ),
             autofocus: true,
             textCapitalization: TextCapitalization.words,
           ),
         ),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
           ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
+          TextButton(
             child: const Text('Create'),
             onPressed: () async {
               final name = controller.text.trim();
@@ -184,71 +183,42 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     );
   }
 
-  Widget _buildImage() {
-    if (_imageFile != null) {
-      return Container(
-        height: 240,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          color: CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.2),
-          border: Border.all(color: CupertinoColors.label.resolveFrom(context).withOpacity(0.1), width: 0.5),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Image.file(
-          _imageFile!,
-          fit: BoxFit.contain,
-        ),
-      );
-    }
-    return Container(
-      height: 200,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: const Center(
-        child: Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey, size: 40),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     
-    // Theme-based colors
-    final backgroundColor = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-    final surfaceColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-    final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
-    final secondaryTextColor = isDark ? CupertinoColors.white.withOpacity(0.5) : CupertinoColors.black.withOpacity(0.5);
-    final iconColor = isDark ? CupertinoColors.white.withOpacity(0.4) : CupertinoColors.black.withOpacity(0.4);
-    final borderColor = isDark ? CupertinoColors.white.withOpacity(0.08) : CupertinoColors.black.withOpacity(0.08);
+    final backgroundColor = theme.scaffoldBackgroundColor;
+    final surfaceColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = theme.colorScheme.onSurface;
+    final secondaryTextColor = textColor.withOpacity(0.6);
+    final iconColor = textColor.withOpacity(0.5);
+    final borderColor = textColor.withOpacity(0.08);
 
-    return Container(
-      height: MediaQuery.of(context).size.height,
-      width: MediaQuery.of(context).size.width,
-      color: backgroundColor,
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        height: MediaQuery.of(context).size.height,
+        width: MediaQuery.of(context).size.width,
+        color: backgroundColor,
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
             // Close button at top
             Positioned(
               top: 20,
               right: 20,
-              child: CupertinoButton(
-                padding: EdgeInsets.zero,
+              child: IconButton(
                 onPressed: () => Navigator.pop(context),
-                child: Container(
+                icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isDark ? CupertinoColors.white.withOpacity(0.1) : CupertinoColors.black.withOpacity(0.05),
+                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(CupertinoIcons.xmark, color: textColor, size: 20),
+                  child: Icon(Icons.close, color: textColor, size: 20),
                 ),
               ),
             ),
@@ -267,7 +237,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: CupertinoColors.black.withOpacity(isDark ? 0.5 : 0.1),
+                              color: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
                               blurRadius: 40,
                             ),
                           ],
@@ -275,13 +245,13 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                         clipBehavior: Clip.antiAlias,
                         child: _imageFile != null 
                           ? Image.file(_imageFile!, fit: BoxFit.contain)
-                          : const CupertinoActivityIndicator(),
+                          : Center(child: CircularProgressIndicator(color: theme.colorScheme.primary)),
                       ),
                     ),
                   ),
                 ),
 
-                // PART 2: Snapi Suggest & Category Section
+                // PART 2: Krabby Suggest & Category Section
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Column(
@@ -293,18 +263,18 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
-                              color: CupertinoColors.activeBlue.withOpacity(0.1),
+                              color: theme.colorScheme.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 14),
+                                Icon(Icons.auto_awesome, color: theme.colorScheme.primary, size: 14),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'SNAPI SUGGESTS: ',
+                                  'KRABBY SUGGESTS: ',
                                   style: TextStyle(
-                                    color: CupertinoColors.activeBlue.withOpacity(0.7),
+                                    color: theme.colorScheme.primary.withOpacity(0.7),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 1.0,
@@ -312,8 +282,8 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                                 ),
                                 Text(
                                   _suggestedCategory!.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: CupertinoColors.activeBlue,
+                                  style: TextStyle(
+                                    color: theme.colorScheme.primary,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 1.0,
@@ -338,11 +308,11 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                                 margin: const EdgeInsets.only(right: 10),
                                 padding: const EdgeInsets.symmetric(horizontal: 14),
                                 decoration: BoxDecoration(
-                                  color: isDark ? CupertinoColors.white.withOpacity(0.08) : CupertinoColors.black.withOpacity(0.05),
+                                  color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(color: borderColor),
                                 ),
-                                child: Icon(CupertinoIcons.add, color: textColor, size: 18),
+                                child: Icon(Icons.add, color: textColor, size: 18),
                               ),
                             ),
                             ..._categories.map((cat) {
@@ -353,17 +323,17 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                                   margin: const EdgeInsets.only(right: 8),
                                   padding: const EdgeInsets.symmetric(horizontal: 16),
                                   decoration: BoxDecoration(
-                                    color: isSelected ? CupertinoColors.activeBlue : (isDark ? CupertinoColors.white.withOpacity(0.05) : CupertinoColors.black.withOpacity(0.03)),
+                                    color: isSelected ? theme.colorScheme.primary : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: isSelected ? CupertinoColors.activeBlue : borderColor),
+                                    border: Border.all(color: isSelected ? theme.colorScheme.primary : borderColor),
                                   ),
                                   child: Center(
                                     child: Text(
                                       cat,
                                       style: TextStyle(
-                                        color: isSelected ? CupertinoColors.white : secondaryTextColor,
+                                        color: isSelected ? Colors.white : secondaryTextColor,
                                         fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                       ),
                                     ),
                                   ),
@@ -393,7 +363,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                       boxShadow: [
                         if (!isDark)
                           BoxShadow(
-                            color: CupertinoColors.black.withOpacity(0.05),
+                            color: Colors.black.withOpacity(0.05),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -402,34 +372,35 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                     child: Row(
                       children: [
                         // Voice Button
-                        CupertinoButton(
-                          padding: const EdgeInsets.only(left: 10),
+                        IconButton(
                           onPressed: _toggleListening,
-                          child: Icon(
-                            _isListening ? CupertinoIcons.stop_fill : CupertinoIcons.mic_fill,
-                            color: _isListening ? CupertinoColors.systemRed : iconColor,
+                          icon: Icon(
+                            _isListening ? Icons.stop : Icons.mic,
+                            color: _isListening ? Colors.red : iconColor,
                             size: 20,
                           ),
                         ),
                         
                         // Text Input
                         Expanded(
-                          child: CupertinoTextField(
+                          child: TextField(
                             controller: _noteController,
-                            placeholder: 'Add a note...',
-                            placeholderStyle: TextStyle(
-                              color: secondaryTextColor.withOpacity(0.4),
-                              fontSize: 16,
+                            decoration: InputDecoration(
+                              hintText: 'Add a note...',
+                              hintStyle: TextStyle(
+                                color: secondaryTextColor.withOpacity(0.4),
+                                fontSize: 16,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             ),
                             style: TextStyle(color: textColor, fontSize: 16),
-                            decoration: null,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            cursorColor: CupertinoColors.activeBlue,
+                            cursorColor: theme.colorScheme.primary,
                             autofocus: true,
                           ),
                         ),
 
-                        // Action Button (Blue & Flat)
+                        // Action Button
                         GestureDetector(
                           onTap: () {
                             widget.onSave(_noteController.text, _selectedCategory, _extractedText);
@@ -438,13 +409,13 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                           child: Container(
                             width: 46,
                             height: 46,
-                            decoration: const BoxDecoration(
-                              color: CupertinoColors.activeBlue,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              CupertinoIcons.arrow_right,
-                              color: CupertinoColors.white,
+                              Icons.arrow_forward,
+                              color: Colors.white,
                               size: 20,
                             ),
                           ),
@@ -458,6 +429,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

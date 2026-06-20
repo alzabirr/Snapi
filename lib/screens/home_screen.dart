@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import '../services/notification_service.dart';
@@ -15,6 +15,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../services/screenshot_service.dart';
 import '../services/device_setup_service.dart';
 import 'device_setup_screen.dart';
+import 'main_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,8 +31,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isBatteryOptimizationIgnored = true;
   bool _galleryPermissionLimited = false;
   bool _galleryPermissionDenied = false;
+  late final ScrollController _scrollController;
   final List<String> _instructions = [
-    "Hi! I am Snapi",
+    "Hi! I am Krabby",
     "Organize screenshot photos",
     "Smart Auto-Organize",
     "Extract text instantly",
@@ -40,12 +42,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     "Let's get started!",
   ];
 
-
-
-
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      MainScreen.scrollOffsetNotifier.value = _scrollController.offset;
+    });
     WidgetsBinding.instance.addObserver(this);
     _instructionTimer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
       if (mounted) {
@@ -86,18 +89,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           _isBatteryOptimizationIgnored = isBatteryIgnored;
-          // It's limited if:
-          // 1. Library explicitly says so
-          // 2. OR OS says granted but we only see a tiny number of photos (suspicious on Android 14)
           bool isLimitedByOS = (state == PermissionState.limited) || (phPhotos == PermissionStatus.limited);
           
-          // Suspicious check: If OS says 'authorized' but count is 2 or 3... 
-          // we treat it as limited to be safe.
           bool looksLimitedByData = (state == PermissionState.authorized) && (assetCount > 0 && assetCount < 5);
           
           _galleryPermissionLimited = isLimitedByOS || looksLimitedByData;
           
-          // Denied if not working and not limited
           final isAuthorized = (state == PermissionState.authorized) && (phPhotos == PermissionStatus.granted) && !looksLimitedByData;
           _galleryPermissionDenied = !isAuthorized && !_galleryPermissionLimited;
           
@@ -120,6 +117,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _instructionTimer.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -129,9 +127,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!mounted) return;
 
-    // Show a simple gallery picker as a modal
-    showCupertinoModalPopup(
+    // Show a simple gallery picker as a modal bottom sheet
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => _GalleryPicker(
         onSelected: (asset) {
           Navigator.pop(context);
@@ -144,29 +144,46 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _showNotePopupForGallery(AssetEntity asset) {
     if (!mounted) return;
 
-    showCupertinoModalPopup(
+    // Use showGeneralDialog for custom dialog layouts
+    showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => ScreenshotPopup(
-        asset: asset,
-        onSave: (note, category, extractedText) async {
-          final file = await asset.file;
-          if (file == null) return;
+      barrierLabel: 'Screenshot Popup',
+      barrierColor: Colors.black.withOpacity(0.4),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: ScreenshotPopup(
+            asset: asset,
+            onSave: (note, category, extractedText) async {
+              final file = await asset.file;
+              if (file == null) return;
 
-          final newItem = ScreenshotItem(
-            id: asset.id,
-            path: file.path,
-            note: note,
-            category: category,
-            createdAt: DateTime.now(),
-            extractedText: extractedText,
-          );
-          await DatabaseService.addItem(newItem);
-        },
-      ),
+              final newItem = ScreenshotItem(
+                id: asset.id,
+                path: file.path,
+                note: note,
+                category: category,
+                createdAt: DateTime.now(),
+                extractedText: extractedText,
+              );
+              await DatabaseService.addItem(newItem);
+            },
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          child: child,
+        );
+      },
     );
   }
-
 
   String _getMonthName(int month) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -186,9 +203,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
-      child: ValueListenableBuilder<Box<ScreenshotItem>>(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: ValueListenableBuilder<Box<ScreenshotItem>>(
         valueListenable: DatabaseService.box.listenable(),
         builder: (context, Box<ScreenshotItem> box, _) {
           final items = box.values.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -204,33 +224,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final headers = groupedItems.keys.toList();
 
           return CustomScrollView(
+            controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              CupertinoSliverNavigationBar(
-                transitionBetweenRoutes: false,
-                largeTitle: Text(
+              SliverAppBar(
+                pinned: true,
+                title: Text(
                   'My Captures',
                   style: TextStyle(
-                    color: CupertinoColors.label.resolveFrom(context),
+                    color: theme.colorScheme.onBackground,
                     letterSpacing: -1.2,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
-                border: null,
-                trailing: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(builder: (context) => const SearchScreen()),
-                    );
-                  },
-                  child: const Icon(CupertinoIcons.search, size: 28, color: CupertinoColors.activeBlue),
-                ),
+                backgroundColor: theme.scaffoldBackgroundColor,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.search, size: 28, color: theme.colorScheme.primary),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SearchScreen()),
+                      );
+                    },
+                  ),
+                ],
               ),
 
-              // PREMIUM WARNING BANNER (Now more compact)
+              // PREMIUM WARNING BANNER
               if (_galleryPermissionLimited || _galleryPermissionDenied)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -242,8 +265,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              CupertinoColors.systemRed.withOpacity(0.85),
-                              CupertinoColors.systemRed.withOpacity(0.95),
+                              Colors.red.shade700.withOpacity(0.85),
+                              Colors.red.shade800.withOpacity(0.95),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -251,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: CupertinoColors.systemRed.withOpacity(0.2),
+                              color: Colors.red.withOpacity(0.2),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -262,12 +285,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: CupertinoColors.white.withOpacity(0.15),
+                                color: Colors.white.withOpacity(0.15),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
-                                CupertinoIcons.photo_fill_on_rectangle_fill,
-                                color: CupertinoColors.white,
+                                Icons.photo_library,
+                                color: Colors.white,
                                 size: 18,
                               ),
                             ),
@@ -281,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w800,
-                                      color: CupertinoColors.white,
+                                      color: Colors.white,
                                       letterSpacing: -0.2,
                                     ),
                                   ),
@@ -292,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       : 'Tap to grant gallery access.',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: CupertinoColors.white.withOpacity(0.85),
+                                      color: Colors.white.withOpacity(0.85),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -302,13 +325,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: CupertinoColors.white,
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'FIX NOW',
                                 style: TextStyle(
-                                  color: CupertinoColors.systemRed,
+                                  color: Colors.red.shade800,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: 0.3,
@@ -322,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
 
-              // Reminder banner for users who skipped setup or haven't optimized battery
+              // Reminder banner for users who skipped setup
               if ((_setupSkipped || !_isBatteryOptimizationIgnored) && !_galleryPermissionDenied && !_galleryPermissionLimited)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -331,7 +354,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       onTap: () {
                         Navigator.push(
                           context,
-                          CupertinoPageRoute(
+                          MaterialPageRoute(
                             builder: (_) => DeviceSetupScreen(
                               onDone: () {
                                 Navigator.pop(context);
@@ -352,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                         child: Row(
                           children: [
-                            const Icon(CupertinoIcons.exclamationmark_shield_fill,
+                            const Icon(Icons.security_rounded,
                                 color: Color(0xFFFF6900), size: 22),
                             const SizedBox(width: 12),
                             Expanded(
@@ -379,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 ],
                               ),
                             ),
-                            const Icon(CupertinoIcons.chevron_right,
+                            const Icon(Icons.chevron_right,
                                 color: Color(0xFFFF6900), size: 16),
                           ],
                         ),
@@ -396,13 +419,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 40), // Push down slightly if needed, or balance out the bottom spacer
-                        // Mascot with Speech Bubble
+                        const SizedBox(height: 40),
                         Stack(
                           clipBehavior: Clip.none,
                           alignment: Alignment.center,
                           children: [
-                            // Speech Bubble with Cycling Text
                             Positioned(
                               top: -60,
                               right: -40,
@@ -420,14 +441,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: CupertinoColors.activeBlue,
+                                    color: theme.colorScheme.primary,
                                     borderRadius: BorderRadius.circular(18),
                                   ),
 
                                   child: Text(
                                     _instructions[_instructionIndex],
                                     style: const TextStyle(
-                                      color: CupertinoColors.white,
+                                      color: Colors.white,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -437,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                             _FloatingMascot(
                               child: Image.asset(
-                                'assets/snapi.png',
+                                'assets/krabby.png',
                                 width: 150,
                                 height: 150,
                                 fit: BoxFit.contain,
@@ -460,17 +481,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             );
                           },
                           child: Text(
-                            "Take a screenshot anywhere on your phone. Snapi will automatically detect and organize it right here",
+                            "Take a screenshot anywhere on your phone. Krabby will automatically detect and organize it right here",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 15,
-                              color: CupertinoColors.systemGrey.resolveFrom(context),
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
                               height: 1.4,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 80), // Push the whole content up
+                        const SizedBox(height: 80),
                       ],
                     ),
                   ),
@@ -489,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w900,
-                                color: CupertinoColors.systemGrey.resolveFrom(context).withOpacity(0.8),
+                                color: theme.colorScheme.onSurface.withOpacity(0.5),
                                 letterSpacing: 1.5,
                               ),
                             ),
@@ -497,7 +518,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Expanded(
                               child: Container(
                                 height: 1,
-                                color: CupertinoColors.systemGrey.resolveFrom(context).withOpacity(0.1),
+                                color: theme.colorScheme.onSurface.withOpacity(0.1),
                               ),
                             ),
                           ],
@@ -518,12 +539,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             final item = groupItems[index];
                             return GestureDetector(
                               onTap: () async {
-                                // Prevent double-push Hero crash
                                 if (!mounted) return;
                                 
                                 await Navigator.push(
                                   context,
-                                  CupertinoPageRoute(
+                                  MaterialPageRoute(
                                     builder: (context) => CaptureDetailsScreen(item: item),
                                   ),
                                 );
@@ -532,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(24),
                                   border: Border.all(
-                                    color: CupertinoColors.systemGrey.resolveFrom(context).withOpacity(0.15),
+                                    color: theme.colorScheme.onSurface.withOpacity(0.12),
                                     width: 0.5,
                                   ),
                                 ),
@@ -548,8 +568,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         cacheWidth: 400,
                                         width: double.infinity,
                                         errorBuilder: (context, error, stackTrace) => Container(
-                                          color: CupertinoColors.systemGrey6,
-                                          child: const Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey),
+                                          color: theme.colorScheme.surfaceVariant,
+                                          child: Icon(Icons.photo_outlined, color: theme.colorScheme.onSurfaceVariant),
                                         ),
                                       ),
                                     ),
@@ -562,8 +582,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             end: Alignment.bottomCenter,
                                             stops: const [0.6, 1.0],
                                             colors: [
-                                              CupertinoColors.transparent,
-                                              CupertinoColors.black.withOpacity(0.4),
+                                              Colors.transparent,
+                                              Colors.black.withOpacity(0.4),
                                             ],
                                           ),
                                         ),
@@ -580,12 +600,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                             decoration: BoxDecoration(
-                                              color: CupertinoTheme.of(context).brightness == Brightness.dark 
-                                                  ? const Color(0xFF1A1A1A).withOpacity(0.75)
-                                                  : CupertinoColors.white.withOpacity(0.88),
+                                              color: isDark 
+                                                  ? const Color(0xFF1E293B).withOpacity(0.75)
+                                                  : Colors.white.withOpacity(0.88),
                                               border: Border(
                                                 top: BorderSide(
-                                                  color: CupertinoColors.label.resolveFrom(context).withOpacity(0.08),
+                                                  color: theme.colorScheme.onSurface.withOpacity(0.08),
                                                   width: 0.5,
                                                 ),
                                               ),
@@ -600,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                   overflow: TextOverflow.ellipsis,
                                                   style: TextStyle(
                                                     fontSize: 14,
-                                                    color: CupertinoColors.label.resolveFrom(context),
+                                                    color: theme.colorScheme.onSurface,
                                                     fontWeight: FontWeight.w700,
                                                     letterSpacing: -0.2,
                                                   ),
@@ -615,7 +635,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                           '${item.createdAt.day} ${_getMonthName(item.createdAt.month)}',
                                                           style: TextStyle(
                                                             fontSize: 11,
-                                                            color: CupertinoColors.systemGrey.withOpacity(0.9),
+                                                            color: theme.colorScheme.onSurface.withOpacity(0.6),
                                                             fontWeight: FontWeight.w600,
                                                             letterSpacing: -0.1,
                                                           ),
@@ -624,22 +644,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                         Container(
                                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                           decoration: BoxDecoration(
-                                                            color: CupertinoColors.activeBlue.withOpacity(0.1),
+                                                            color: theme.colorScheme.primary.withOpacity(0.1),
                                                             borderRadius: BorderRadius.circular(5),
                                                           ),
                                                           child: Text(
                                                             item.category.toUpperCase(),
-                                                            style: const TextStyle(
+                                                            style: TextStyle(
                                                               fontSize: 8,
                                                               fontWeight: FontWeight.w800,
-                                                              color: CupertinoColors.activeBlue,
+                                                              color: theme.colorScheme.primary,
                                                             ),
                                                           ),
                                                         ),
                                                       ],
                                                     ),
-                                                    ],
-                                                  ),
+                                                  ],
+                                                ),
                                               ],
                                             ),
                                           ),
@@ -651,17 +671,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       Positioned.fill(
                                         child: Container(
                                           decoration: BoxDecoration(
-                                            color: CupertinoColors.black.withOpacity(0.65),
+                                            color: Colors.black.withOpacity(0.65),
                                           ),
                                           child: Column(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
-                                              const Icon(CupertinoIcons.trash_fill, color: CupertinoColors.systemRed, size: 30),
+                                              const Icon(Icons.delete_forever, color: Colors.red, size: 30),
                                               const SizedBox(height: 8),
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                 decoration: BoxDecoration(
-                                                  color: CupertinoColors.systemRed.withOpacity(0.9),
+                                                  color: Colors.red.withOpacity(0.9),
                                                   borderRadius: BorderRadius.circular(6),
                                                 ),
                                                 child: const Text(
@@ -738,13 +758,16 @@ class _GalleryPickerState extends State<_GalleryPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
-        color: const Color(0xFF151515),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(
-          color: CupertinoColors.white.withOpacity(0.1),
+          color: theme.colorScheme.onSurface.withOpacity(0.1),
         ),
       ),
       child: Column(
@@ -755,7 +778,7 @@ class _GalleryPickerState extends State<_GalleryPicker> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: CupertinoColors.systemGrey.withOpacity(0.4),
+              color: theme.colorScheme.onSurface.withOpacity(0.2),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -766,15 +789,14 @@ class _GalleryPickerState extends State<_GalleryPicker> {
               children: [
                 Text(
                   'Select from Gallery',
-                  style: CupertinoTheme.of(context).textTheme.navTitleTextStyle.copyWith(
-                    color: CupertinoColors.label.resolveFrom(context),
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Text('Close', style: TextStyle(color: CupertinoColors.activeBlue)),
+                TextButton(
+                  child: Text('Close', style: TextStyle(color: theme.colorScheme.primary)),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -782,9 +804,9 @@ class _GalleryPickerState extends State<_GalleryPicker> {
           ),
           Expanded(
             child: _isLoading 
-              ? const Center(child: CupertinoActivityIndicator(radius: 15))
+              ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
               : _assets.isEmpty
-                ? const Center(child: Text('No images found', style: TextStyle(color: CupertinoColors.systemGrey)))
+                ? Center(child: Text('No images found', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5))))
                 : GridView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -795,7 +817,6 @@ class _GalleryPickerState extends State<_GalleryPicker> {
                     itemCount: _assets.length,
                     itemBuilder: (context, index) {
                       final asset = _assets[index];
-                      // Use the same logic as the service to identify screenshots
                       final isScreenshot = ScreenshotService.isScreenshot(asset);
                       
                       return GestureDetector(
@@ -823,11 +844,12 @@ class AssetThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return FutureBuilder<Uint8List?>(
       future: asset.thumbnailData,
       builder: (context, snapshot) {
         final data = snapshot.data;
-        if (data == null) return Container(color: CupertinoColors.systemGrey6);
+        if (data == null) return Container(color: theme.colorScheme.surfaceVariant);
         
         return Stack(
           fit: StackFit.expand,
@@ -840,19 +862,19 @@ class AssetThumbnail extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
-                    color: CupertinoColors.activeBlue,
+                    color: theme.colorScheme.primary,
                     borderRadius: BorderRadius.circular(4),
                   ),
-                    child: const Icon(
-                      CupertinoIcons.camera_viewfinder,
-                      color: CupertinoColors.white,
-                      size: 12,
-                    ),
+                  child: const Icon(
+                    Icons.document_scanner_outlined,
+                    color: Colors.white,
+                    size: 12,
                   ),
                 ),
-            ],
-          );
-        },
+              ),
+          ],
+        );
+      },
     );
   }
 }

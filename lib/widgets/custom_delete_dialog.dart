@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 void showCustomDeleteDialog({
@@ -13,12 +12,13 @@ void showCustomDeleteDialog({
     context: context,
     barrierDismissible: true,
     barrierLabel: '',
-    barrierColor: CupertinoColors.black.withOpacity(0.55),
+    barrierColor: Colors.black.withOpacity(0.55),
     transitionDuration: const Duration(milliseconds: 280),
     pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
     transitionBuilder: (context, anim1, anim2, child) {
       final curveValue = Curves.easeOutBack.transform(anim1.value);
-      final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+      final theme = Theme.of(context);
+      final isDark = theme.brightness == Brightness.dark;
       
       return Transform.scale(
         scale: curveValue,
@@ -29,7 +29,7 @@ void showCustomDeleteDialog({
               margin: const EdgeInsets.symmetric(horizontal: 24),
               padding: const EdgeInsets.only(top: 18, bottom: 14, left: 16, right: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
@@ -47,14 +47,14 @@ void showCustomDeleteDialog({
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w400,
-                        color: isDark ? CupertinoColors.white : const Color(0xFF1F1F1F),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
                         letterSpacing: -0.5,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.center,
@@ -63,70 +63,52 @@ void showCustomDeleteDialog({
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
-                          color: isDark ? CupertinoColors.systemGrey2 : const Color(0xFF4E4E4E),
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    // Grouped Action Buttons (Matching the stacked grouped rounded rectangle style)
+                    const SizedBox(height: 20),
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Delete Button (Top Rounded)
-                        GestureDetector(
-                          onTap: () {
+                        // Delete Button
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: theme.colorScheme.error,
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          onPressed: () {
                             Navigator.pop(context);
                             onDelete();
                           },
-                          child: Container(
-                            width: double.infinity,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F2),
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(20),
-                                topRight: Radius.circular(20),
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                deleteButtonText,
-                                style: const TextStyle(
-                                  color: Color(0xFFD32F2F),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
+                          child: Text(
+                            deleteButtonText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        // Separator Divider
-                        Container(
-                          height: 2.0,
-                          color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-                        ),
-                        // Cancel Button (Bottom Rounded)
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            width: double.infinity,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F2),
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft: Radius.circular(20),
-                                bottomRight: Radius.circular(20),
-                              ),
+                        const SizedBox(height: 8),
+                        // Cancel Button
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Center(
-                              child: Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  color: isDark ? CupertinoColors.white : const Color(0xFF1E1E1E),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),

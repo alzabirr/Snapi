@@ -1,11 +1,11 @@
 {
-    "name": "Snapi",
-    "short_name": "Snapi",
+    "name": "Krabby",
+    "short_name": "Krabby",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Snapi - Your Screenshot Assistant",
+    "description": "Krabby - Your Screenshot Assistant",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
