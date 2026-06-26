@@ -26,7 +26,3 @@ Krabby  V-2
 --------------
 
 <!-- app name  -->
-
-Zapture
-Krabby  
-Flink 
