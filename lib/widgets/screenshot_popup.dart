@@ -27,7 +27,8 @@ class ScreenshotPopup extends StatefulWidget {
   State<ScreenshotPopup> createState() => _ScreenshotPopupState();
 }
 
-class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProviderStateMixin {
+class _ScreenshotPopupState extends State<ScreenshotPopup>
+    with SingleTickerProviderStateMixin {
   late final TextEditingController _noteController;
   String _selectedCategory = 'Uncategorized';
   List<String> _categories = ['Uncategorized', 'Personal'];
@@ -98,7 +99,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
       if (mounted && result.category != 'Other') {
         // Refresh categories list in case AIService created a new one silently
         await _loadCategories();
-        
+
         setState(() {
           _suggestedCategory = result.category;
           _selectedCategory = result.category; // Auto-select the suggestion
@@ -126,7 +127,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
     } else {
       _pulseController.repeat(reverse: true);
       if (mounted) setState(() => _isListening = true);
-      
+
       await SpeechService.startListening((text) {
         if (mounted) {
           setState(() {
@@ -191,14 +192,16 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          color: CupertinoColors.systemFill.resolveFrom(context).withOpacity(0.2),
-          border: Border.all(color: CupertinoColors.label.resolveFrom(context).withOpacity(0.1), width: 0.5),
+          color: CupertinoColors.systemFill
+              .resolveFrom(context)
+              .withOpacity(0.2),
+          border: Border.all(
+            color: CupertinoColors.label.resolveFrom(context).withOpacity(0.1),
+            width: 0.5,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Image.file(
-          _imageFile!,
-          fit: BoxFit.contain,
-        ),
+        child: Image.file(_imageFile!, fit: BoxFit.contain),
       );
     }
     return Container(
@@ -209,7 +212,11 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
         borderRadius: BorderRadius.circular(24),
       ),
       child: const Center(
-        child: Icon(CupertinoIcons.photo, color: CupertinoColors.systemGrey, size: 40),
+        child: Icon(
+          CupertinoIcons.photo,
+          color: CupertinoColors.systemGrey,
+          size: 40,
+        ),
       ),
     );
   }
@@ -218,14 +225,24 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-    
+
     // Theme-based colors
-    final backgroundColor = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-    final surfaceColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final backgroundColor = isDark
+        ? const Color(0xFF000000)
+        : const Color(0xFFFFFFFF);
+    final surfaceColor = isDark
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFFF2F2F7);
     final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
-    final secondaryTextColor = isDark ? CupertinoColors.white.withOpacity(0.5) : CupertinoColors.black.withOpacity(0.5);
-    final iconColor = isDark ? CupertinoColors.white.withOpacity(0.4) : CupertinoColors.black.withOpacity(0.4);
-    final borderColor = isDark ? CupertinoColors.white.withOpacity(0.08) : CupertinoColors.black.withOpacity(0.08);
+    final secondaryTextColor = isDark
+        ? CupertinoColors.white.withOpacity(0.5)
+        : CupertinoColors.black.withOpacity(0.5);
+    final iconColor = isDark
+        ? CupertinoColors.white.withOpacity(0.4)
+        : CupertinoColors.black.withOpacity(0.4);
+    final borderColor = isDark
+        ? CupertinoColors.white.withOpacity(0.08)
+        : CupertinoColors.black.withOpacity(0.08);
 
     return Container(
       height: MediaQuery.of(context).size.height,
@@ -245,7 +262,9 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isDark ? CupertinoColors.white.withOpacity(0.1) : CupertinoColors.black.withOpacity(0.05),
+                    color: isDark
+                        ? CupertinoColors.white.withOpacity(0.1)
+                        : CupertinoColors.black.withOpacity(0.05),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(CupertinoIcons.xmark, color: textColor, size: 20),
@@ -267,15 +286,17 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: CupertinoColors.black.withOpacity(isDark ? 0.5 : 0.1),
+                              color: CupertinoColors.black.withOpacity(
+                                isDark ? 0.5 : 0.1,
+                              ),
                               blurRadius: 40,
                             ),
                           ],
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: _imageFile != null 
-                          ? Image.file(_imageFile!, fit: BoxFit.contain)
-                          : const CupertinoActivityIndicator(),
+                        child: _imageFile != null
+                            ? Image.file(_imageFile!, fit: BoxFit.contain)
+                            : const CupertinoActivityIndicator(),
                       ),
                     ),
                   ),
@@ -291,20 +312,30 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
-                              color: CupertinoColors.activeBlue.withOpacity(0.1),
+                              color: CupertinoColors.activeBlue.withOpacity(
+                                0.1,
+                              ),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(CupertinoIcons.sparkles, color: CupertinoColors.activeBlue, size: 14),
+                                const Icon(
+                                  CupertinoIcons.sparkles,
+                                  color: CupertinoColors.activeBlue,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   'SNAPI SUGGESTS: ',
                                   style: TextStyle(
-                                    color: CupertinoColors.activeBlue.withOpacity(0.7),
+                                    color: CupertinoColors.activeBlue
+                                        .withOpacity(0.7),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 1.0,
@@ -323,7 +354,7 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                             ),
                           ),
                         ),
-                      
+
                       // Folder List
                       SizedBox(
                         height: 42,
@@ -336,34 +367,59 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                               onTap: _showAddCategoryDialog,
                               child: Container(
                                 margin: const EdgeInsets.only(right: 10),
-                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isDark ? CupertinoColors.white.withOpacity(0.08) : CupertinoColors.black.withOpacity(0.05),
+                                  color: isDark
+                                      ? CupertinoColors.white.withOpacity(0.08)
+                                      : CupertinoColors.black.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(color: borderColor),
                                 ),
-                                child: Icon(CupertinoIcons.add, color: textColor, size: 18),
+                                child: Icon(
+                                  CupertinoIcons.add,
+                                  color: textColor,
+                                  size: 18,
+                                ),
                               ),
                             ),
                             ..._categories.map((cat) {
                               final isSelected = _selectedCategory == cat;
                               return GestureDetector(
-                                onTap: () => setState(() => _selectedCategory = cat),
+                                onTap: () =>
+                                    setState(() => _selectedCategory = cat),
                                 child: Container(
                                   margin: const EdgeInsets.only(right: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: isSelected ? CupertinoColors.activeBlue : (isDark ? CupertinoColors.white.withOpacity(0.05) : CupertinoColors.black.withOpacity(0.03)),
+                                    color: isSelected
+                                        ? CupertinoColors.activeBlue
+                                        : (isDark
+                                              ? CupertinoColors.white
+                                                    .withOpacity(0.05)
+                                              : CupertinoColors.black
+                                                    .withOpacity(0.03)),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: isSelected ? CupertinoColors.activeBlue : borderColor),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? CupertinoColors.activeBlue
+                                          : borderColor,
+                                    ),
                                   ),
                                   child: Center(
                                     child: Text(
                                       cat,
                                       style: TextStyle(
-                                        color: isSelected ? CupertinoColors.white : secondaryTextColor,
+                                        color: isSelected
+                                            ? CupertinoColors.white
+                                            : secondaryTextColor,
                                         fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
                                       ),
                                     ),
                                   ),
@@ -380,9 +436,9 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                 // PART 3: Input Section
                 Padding(
                   padding: EdgeInsets.only(
-                    left: 20, 
-                    right: 20, 
-                    bottom: bottomPadding > 0 ? bottomPadding + 10 : 30
+                    left: 20,
+                    right: 20,
+                    bottom: bottomPadding > 0 ? bottomPadding + 10 : 30,
                   ),
                   child: Container(
                     padding: const EdgeInsets.all(6),
@@ -406,12 +462,16 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                           padding: const EdgeInsets.only(left: 10),
                           onPressed: _toggleListening,
                           child: Icon(
-                            _isListening ? CupertinoIcons.stop_fill : CupertinoIcons.mic_fill,
-                            color: _isListening ? CupertinoColors.systemRed : iconColor,
+                            _isListening
+                                ? CupertinoIcons.stop_fill
+                                : CupertinoIcons.mic_fill,
+                            color: _isListening
+                                ? CupertinoColors.systemRed
+                                : iconColor,
                             size: 20,
                           ),
                         ),
-                        
+
                         // Text Input
                         Expanded(
                           child: CupertinoTextField(
@@ -423,7 +483,10 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                             ),
                             style: TextStyle(color: textColor, fontSize: 16),
                             decoration: null,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
                             cursorColor: CupertinoColors.activeBlue,
                             autofocus: true,
                           ),
@@ -432,7 +495,11 @@ class _ScreenshotPopupState extends State<ScreenshotPopup> with SingleTickerProv
                         // Action Button (Blue & Flat)
                         GestureDetector(
                           onTap: () {
-                            widget.onSave(_noteController.text, _selectedCategory, _extractedText);
+                            widget.onSave(
+                              _noteController.text,
+                              _selectedCategory,
+                              _extractedText,
+                            );
                             Navigator.pop(context);
                           },
                           child: Container(
