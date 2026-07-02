@@ -11,6 +11,7 @@ import '../services/screenshot_service.dart';
 import 'recycle_bin_screen.dart';
 import 'category_manager_screen.dart';
 import '../widgets/floating_profile_icon.dart';
+import 'about_snapi_screen.dart';
 import 'smart_organize_detail_screen.dart';
 import 'package:photo_manager/photo_manager.dart';
 
@@ -148,11 +149,16 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         child: ListView(
           physics: const BouncingScrollPhysics(),
           children: [
-            // iOS Style Profile/Stats Header (Interactive)
+            // iOS Style About Snapi Header (Interactive)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: GestureDetector(
-                onTap: () => _showAssistantModal(context),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(builder: (context) => const AboutSnapiScreen()),
+                  );
+                },
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -177,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                             Row(
                               children: [
                                 Text(
-                                  'Snapi Assistant',
+                                  'About Snapi',
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w600,
@@ -190,7 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Your personal AI companion',
+                              'How it works & our motive',
                               style: const TextStyle(
                                 fontSize: 14,
                                 color: CupertinoColors.systemGrey,
@@ -347,172 +353,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     return const SizedBox.shrink();
   }
 
-  void _showAssistantModal(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.7,
-          decoration: BoxDecoration(
-            color: (isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white).withOpacity(0.85),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-            border: Border.all(
-              color: (isDark ? CupertinoColors.white : CupertinoColors.activeBlue).withOpacity(0.1),
-            ),
-          ),
-          child: Stack(
-            children: [
-              // Top Background Glow
-              Positioned(
-                top: -100,
-                left: -50,
-                right: -50,
-                child: Container(
-                  height: 300,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        CupertinoColors.activeBlue.withOpacity(isDark ? 0.2 : 0.1),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    Container(
-                      width: 36,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.systemGrey4.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(2.5),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    
-                    // Animated Mascot
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.8, end: 1.0),
-                      duration: const Duration(milliseconds: 600),
-                      curve: Curves.easeOutBack,
-                      builder: (context, value, child) => Transform.scale(
-                        scale: value,
-                        child: child,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: CupertinoColors.activeBlue.withOpacity(0.05),
-                        ),
-                        child: Image.asset('assets/snapi.png', width: 140, height: 140),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    const Text(
-                      "Meet your Snapi Assistant",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 26, 
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "I'm here to help you manage your memories.\nI'm learning more every day!",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16, 
-                        color: CupertinoColors.secondaryLabel.resolveFrom(context),
-                        height: 1.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Action Chips
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        _buildAssistantChip(CupertinoIcons.lightbulb_fill, "View Tips"),
-                        _buildAssistantChip(CupertinoIcons.bolt_fill, "Quick Start"),
-                        _buildAssistantChip(CupertinoIcons.question_circle_fill, "Get Help"),
-                      ],
-                    ),
-                    
-                    const Spacer(),
-                    
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => Navigator.pop(context),
-                      child: Container(
-                        width: double.infinity,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.activeBlue,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            "Coming soon !",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildAssistantChip(IconData icon, String label) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: (isDark ? CupertinoColors.white : CupertinoColors.activeBlue).withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: CupertinoColors.activeBlue),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: CupertinoColors.activeBlue,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showAutoOrganizeInfo(BuildContext context) {
     showCupertinoDialog(

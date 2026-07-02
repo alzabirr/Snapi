@@ -188,6 +188,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
+      navigationBar: CupertinoNavigationBar(
+        transitionBetweenRoutes: false,
+        middle: Text(
+          'My Captures',
+          style: TextStyle(
+            color: CupertinoColors.label.resolveFrom(context),
+            letterSpacing: -0.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
+        border: null,
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () {
+            Navigator.push(
+              context,
+              CupertinoPageRoute(builder: (context) => const SearchScreen()),
+            );
+          },
+          child: const Icon(CupertinoIcons.search, size: 28, color: CupertinoColors.activeBlue),
+        ),
+      ),
       child: ValueListenableBuilder<Box<ScreenshotItem>>(
         valueListenable: DatabaseService.box.listenable(),
         builder: (context, Box<ScreenshotItem> box, _) {
@@ -203,32 +226,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
           final headers = groupedItems.keys.toList();
 
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              CupertinoSliverNavigationBar(
-                transitionBetweenRoutes: false,
-                largeTitle: Text(
-                  'My Captures',
-                  style: TextStyle(
-                    color: CupertinoColors.label.resolveFrom(context),
-                    letterSpacing: -1.2,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
-                border: null,
-                trailing: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(builder: (context) => const SearchScreen()),
-                    );
-                  },
-                  child: const Icon(CupertinoIcons.search, size: 28, color: CupertinoColors.activeBlue),
-                ),
-              ),
+          return SafeArea(
+            bottom: false,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
 
               // PREMIUM WARNING BANNER (Now more compact)
               if (_galleryPermissionLimited || _galleryPermissionDenied)
@@ -687,7 +689,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 }),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
-          );
+          ),
+        );
         },
       ),
     );

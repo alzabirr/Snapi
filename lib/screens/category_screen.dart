@@ -292,54 +292,57 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
     return CupertinoPageScaffold(
       backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          CupertinoSliverNavigationBar(
-            transitionBetweenRoutes: false,
-            largeTitle: Text(
-              'My Folders',
-              style: TextStyle(
-                color: CupertinoColors.label.resolveFrom(context),
-                letterSpacing: -1.2,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
-            border: null,
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _addNewFolder,
-              child: const Icon(CupertinoIcons.folder_badge_plus, size: 28, color: CupertinoColors.activeBlue),
-            ),
+      navigationBar: CupertinoNavigationBar(
+        transitionBetweenRoutes: false,
+        middle: Text(
+          'My Folders',
+          style: TextStyle(
+            color: CupertinoColors.label.resolveFrom(context),
+            letterSpacing: -0.5,
+            fontWeight: FontWeight.w800,
           ),
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.70,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final category = _allCategories[index];
-                  final items = _groupedItems[category] ?? [];
-                  final color = folderColors[index % folderColors.length];
-                  return _FolderCard(
-                    category: category,
-                    items: items,
-                    isDark: isDark,
-                    color: color,
-                    onLongPress: () => _showFolderOptions(category),
-                  );
-                },
-                childCount: _allCategories.length,
+        ),
+        backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
+        border: null,
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _addNewFolder,
+          child: const Icon(CupertinoIcons.folder_badge_plus, size: 28, color: CupertinoColors.activeBlue),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.70,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final category = _allCategories[index];
+                    final items = _groupedItems[category] ?? [];
+                    final color = folderColors[index % folderColors.length];
+                    return _FolderCard(
+                      category: category,
+                      items: items,
+                      isDark: isDark,
+                      color: color,
+                      onLongPress: () => _showFolderOptions(category),
+                    );
+                  },
+                  childCount: _allCategories.length,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
