@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import '../models/screenshot_item.dart';
 import '../services/database_service.dart';
 import '../services/notification_service.dart';
@@ -15,6 +16,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../services/screenshot_service.dart';
 import '../services/device_setup_service.dart';
 import 'device_setup_screen.dart';
+import '../services/export_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +26,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  bool _isSelectMode = false;
+  final Set<String> _selectedItemIds = {};
   int _instructionIndex = 0;
   late final Timer _instructionTimer;
   bool _setupSkipped = false;
@@ -190,8 +194,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
       navigationBar: CupertinoNavigationBar(
         transitionBetweenRoutes: false,
+        leading: _isSelectMode
+            ? CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () {
+                  setState(() {
+                    _isSelectMode = false;
+                    _selectedItemIds.clear();
+                  });
+                },
+                child: const Text('Cancel', style: TextStyle(color: CupertinoColors.activeBlue, fontWeight: FontWeight.bold)),
+              )
+            : null,
         middle: Text(
-          'My Captures',
+          _isSelectMode ? '${_selectedItemIds.length} Selected' : 'My Captures',
           style: TextStyle(
             color: CupertinoColors.label.resolveFrom(context),
             letterSpacing: -0.5,
@@ -200,16 +216,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
         border: null,
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () {
-            Navigator.push(
-              context,
-              CupertinoPageRoute(builder: (context) => const SearchScreen()),
-            );
-          },
-          child: const Icon(CupertinoIcons.search, size: 28, color: CupertinoColors.activeBlue),
-        ),
+        trailing: _isSelectMode
+            ? CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: _selectedItemIds.isEmpty
+                    ? null
+                    : () async {
+                        final items = DatabaseService.box.values.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                        final selectedItems = items.where((i) => _selectedItemIds.contains(i.id)).toList();
+                        await ExportService.shareAsPDF(selectedItems);
+                      },
+                child: Icon(
+                  CupertinoIcons.share,
+                  size: 26,
+                  color: _selectedItemIds.isEmpty
+                      ? CupertinoColors.systemGrey
+                      : CupertinoColors.activeBlue,
+                ),
+              )
+            : CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(builder: (context) => const SearchScreen()),
+                  );
+                },
+                child: const Icon(CupertinoIcons.search, size: 28, color: CupertinoColors.activeBlue),
+              ),
       ),
       child: ValueListenableBuilder<Box<ScreenshotItem>>(
         valueListenable: DatabaseService.box.listenable(),
@@ -519,16 +553,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           (context, index) {
                             final item = groupItems[index];
                             return GestureDetector(
+                              onLongPress: () {
+                                HapticFeedback.mediumImpact();
+                                setState(() {
+                                  _isSelectMode = true;
+                                  _selectedItemIds.add(item.id);
+                                });
+                              },
                               onTap: () async {
-                                // Prevent double-push Hero crash
-                                if (!mounted) return;
-                                
-                                await Navigator.push(
-                                  context,
-                                  CupertinoPageRoute(
-                                    builder: (context) => CaptureDetailsScreen(item: item),
-                                  ),
-                                );
+                                if (_isSelectMode) {
+                                  setState(() {
+                                    if (_selectedItemIds.contains(item.id)) {
+                                      _selectedItemIds.remove(item.id);
+                                      if (_selectedItemIds.isEmpty) {
+                                        _isSelectMode = false;
+                                      }
+                                    } else {
+                                      _selectedItemIds.add(item.id);
+                                    }
+                                  });
+                                } else {
+                                  // Prevent double-push Hero crash
+                                  if (!mounted) return;
+                                  
+                                  await Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                      builder: (context) => CaptureDetailsScreen(item: item),
+                                    ),
+                                  );
+                                }
                               },
                               child: Container(
                                 decoration: BoxDecoration(
@@ -676,6 +730,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           ),
                                         ),
                                       ),
+                                    
+                                    // Selection Checkbox Overlay
+                                    if (_isSelectMode)
+                                      Positioned(
+                                        top: 12,
+                                        right: 12,
+                                        child: Container(
+                                          width: 24,
+                                          height: 24,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: _selectedItemIds.contains(item.id)
+                                                ? CupertinoColors.activeBlue
+                                                : CupertinoColors.black.withOpacity(0.4),
+                                            border: Border.all(
+                                              color: CupertinoColors.white,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: _selectedItemIds.contains(item.id)
+                                              ? const Icon(
+                                                  CupertinoIcons.checkmark,
+                                                  color: CupertinoColors.white,
+                                                  size: 14,
+                                                )
+                                              : null,
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -691,7 +773,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
         );
-        },
+      },
       ),
     );
   }

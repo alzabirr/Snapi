@@ -179,44 +179,38 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
     
     return CupertinoPageScaffold(
       backgroundColor: backgroundColor,
-      child: Stack(
-        children: [
-          // Background Glows for Premium Look
-          // Background Glows removed for pure dark feel as requested
-
-          CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              CupertinoSliverNavigationBar(
-                transitionBetweenRoutes: false,
-                largeTitle: GestureDetector(
-                  onTap: _showAlbumPicker,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _selectedAlbum?.name ?? 'Library',
-                        style: TextStyle(
-                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                          letterSpacing: -1.2,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: isDark ? CupertinoColors.systemGrey.withOpacity(0.1) : CupertinoColors.activeBlue.withOpacity(0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(CupertinoIcons.chevron_down, size: 12, color: isDark ? CupertinoColors.systemGrey : CupertinoColors.activeBlue),
-                      ),
-                    ],
-                  ),
+      navigationBar: CupertinoNavigationBar(
+        transitionBetweenRoutes: false,
+        middle: GestureDetector(
+          onTap: _showAlbumPicker,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _selectedAlbum?.name ?? 'Library',
+                style: TextStyle(
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  fontWeight: FontWeight.w800,
                 ),
-                backgroundColor: backgroundColor.withOpacity(0.7),
-                border: null,
               ),
+              const SizedBox(width: 4),
+              Icon(
+                CupertinoIcons.chevron_down,
+                size: 14,
+                color: isDark ? CupertinoColors.systemGrey : CupertinoColors.activeBlue,
+              ),
+            ],
+          ),
+        ),
+        backgroundColor: backgroundColor.withOpacity(0.7),
+        border: null,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
               
               if (_isLoading)
                 const SliverFillRemaining(
@@ -366,8 +360,7 @@ class _AddScreenState extends State<AddScreen> with SingleTickerProviderStateMix
               const SliverToBoxAdapter(child: SizedBox(height: 160)),
             ],
           ),
-        ],
-      ),
+        ),
     );
   }
 }
