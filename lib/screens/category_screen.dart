@@ -582,16 +582,25 @@ class CategoryDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          CupertinoSliverNavigationBar(
-            transitionBetweenRoutes: false,
-            largeTitle: Text(category),
-            backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
-            border: null,
+      navigationBar: CupertinoNavigationBar(
+        transitionBetweenRoutes: false,
+        middle: Text(
+          category,
+          style: TextStyle(
+            color: CupertinoColors.label.resolveFrom(context),
+            letterSpacing: -0.5,
+            fontWeight: FontWeight.w800,
           ),
-          SliverPadding(
+        ),
+        backgroundColor: CupertinoTheme.of(context).barBackgroundColor.withOpacity(0.8),
+        border: null,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -728,6 +737,7 @@ class CategoryDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+     ),
     );
   }
 
