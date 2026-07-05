@@ -24,8 +24,6 @@ Snapi  V-1
 
 Snapi  V-2 
 --------------
-
-
 1. Export to PDF (Share as PDF)
 Long-press any screenshot on the Home screen to enter multi-selection mode.
 Selected items now display an Apple-style blue checkmark.
@@ -50,3 +48,8 @@ Updated the title displayed when opening a folder in My Folders to match the My 
 6. Selection Mode UI
 Removed the floating bottom action bar that previously appeared during selection mode.
 Moved the Share action to the top-right corner for a cleaner, more consistent interface.
+
+
+===================================================================================
+
+
