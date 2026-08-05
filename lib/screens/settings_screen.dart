@@ -9,6 +9,8 @@ import '../services/database_service.dart';
 import '../services/screenshot_service.dart';
 import 'recycle_bin_screen.dart';
 import 'category_manager_screen.dart';
+import 'category_screen.dart';
+import 'visual_screen.dart';
 import '../widgets/floating_profile_icon.dart';
 import 'smart_organize_detail_screen.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -273,7 +275,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             const SizedBox(height: 20),
 
             // Section 3: Utilities
-            _buildSectionHeader('Trash Management'),
+            _buildSectionHeader('Folders & Utilities'),
             Card(
               elevation: 0,
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -281,17 +283,49 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08), width: 0.5),
               ),
-              child: ListTile(
-                leading: _buildIcon(Icons.delete_outline_rounded, Colors.orange),
-                title: const Text('Recycle Bin'),
-                trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withOpacity(0.4)),
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RecycleBinScreen()),
-                  );
-                  _loadStats();
-                },
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: _buildIcon(Icons.folder_outlined, Colors.amber),
+                    title: const Text('My Folders'),
+                    subtitle: const Text('Organize screenshots into categories'),
+                    trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const CategoryScreen()),
+                      );
+                      _loadStats();
+                    },
+                  ),
+                  Divider(height: 1, color: theme.colorScheme.onSurface.withOpacity(0.08)),
+                  ListTile(
+                    leading: _buildIcon(Icons.analytics_outlined, Colors.indigo),
+                    title: const Text('Visual Analytics'),
+                    subtitle: const Text('Explore visual graph and clusters'),
+                    trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const VisualScreen()),
+                      );
+                      _loadStats();
+                    },
+                  ),
+                  Divider(height: 1, color: theme.colorScheme.onSurface.withOpacity(0.08)),
+                  ListTile(
+                    leading: _buildIcon(Icons.delete_outline_rounded, Colors.orange),
+                    title: const Text('Recycle Bin'),
+                    trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const RecycleBinScreen()),
+                      );
+                      _loadStats();
+                    },
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
