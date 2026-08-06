@@ -67,12 +67,12 @@ class _MainScreenState extends State<MainScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(31),
                           child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                            filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
                             child: Container(
                               decoration: BoxDecoration(
                                 color: isDark
-                                    ? Colors.white.withValues(alpha: 0.18)
-                                    : Colors.white.withValues(alpha: 0.50),
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.white.withValues(alpha: 0.22),
                                 borderRadius: BorderRadius.circular(31),
                                 boxShadow: [
                                   BoxShadow(
